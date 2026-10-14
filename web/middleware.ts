@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Girişsiz erişime açık tek sayfalar
-const PUBLIC = ["/giris", "/kayit", "/parola-sifirla", "/aydinlatma", "/kullanim-sartlari"];
+const PUBLIC = ["/giris", "/kayit", "/parola-sifirla", "/aydinlatma", "/kullanim-sartlari", "/auth/callback"];
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req });
@@ -31,7 +31,7 @@ export async function middleware(req: NextRequest) {
     url.pathname = "/giris";
     return NextResponse.redirect(url);
   }
-  if (user && path === "/giris") {
+  if (user && (path === "/giris" || path === "/kayit")) {
     const url = req.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

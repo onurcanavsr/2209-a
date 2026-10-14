@@ -7,6 +7,7 @@ class Settings(BaseSettings):
 
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
+    supabase_service_role_key: str = ""
     llm_provider: str = "anthropic"
     llm_model: str = "claude-sonnet-5-5"
     anthropic_api_key: str = ""

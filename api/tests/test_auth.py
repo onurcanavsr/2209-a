@@ -62,3 +62,38 @@ def test_student_cannot_reach_admin():
 
 def test_admin_allowed():
     assert client.get("/api/admin/ping", headers=auth(token("admin"))).status_code == 200
+
+
+# ---- Hesap silme (KVKK) ----
+def test_delete_me_requires_login():
+    assert client.delete("/api/me").status_code == 401
+
+
+def test_delete_me_student(monkeypatch):
+    calls = []
+
+    async def fake(uid):
+        calls.append(uid)
+
+    monkeypatch.setattr("app.routers.me.delete_auth_user", fake)
+    r = client.delete("/api/me", headers=auth(token()))
+    assert r.status_code == 204 and calls == ["u1"]
+
+
+def test_delete_me_admin_blocked(monkeypatch):
+    calls = []
+
+    async def fake(uid):
+        calls.append(uid)
+
+    monkeypatch.setattr("app.routers.me.delete_auth_user", fake)
+    r = client.delete("/api/me", headers=auth(token("admin")))
+    assert r.status_code == 403 and calls == []
+
+
+def test_delete_me_failure_is_502(monkeypatch):
+    async def boom(uid):
+        raise RuntimeError("x")
+
+    monkeypatch.setattr("app.routers.me.delete_auth_user", boom)
+    assert client.delete("/api/me", headers=auth(token())).status_code == 502

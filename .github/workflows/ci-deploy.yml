@@ -25,6 +25,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy
           NEXT_PUBLIC_API_URL: https://api.example.com
+          NEXT_PUBLIC_SITE_URL: https://example.com
+          NEXT_PUBLIC_REGISTRATION_OPEN: "false"
 
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'

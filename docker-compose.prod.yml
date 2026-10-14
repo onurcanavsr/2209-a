@@ -25,6 +25,8 @@ services:
         NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
         NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
+        NEXT_PUBLIC_SITE_URL: https://${DOMAIN}
+        NEXT_PUBLIC_REGISTRATION_OPEN: ${REGISTRATION_OPEN:-false}
     restart: unless-stopped
     networks: [edge]
 

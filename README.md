@@ -25,3 +25,7 @@ Yapay zekâ destekli, erişilebilir akademik içerik platformu (TÜBİTAK 2209-A
 - `.github/workflows/ci-deploy.yml`: `main`'e push → testler → sunucuya yayın.
 - `.github/workflows/keepalive.yml`: Supabase ücretsiz projesini uyanık tutar (0002_keepalive.sql gerekir).
 - `scripts/backup.sh`: haftalık veritabanı yedeği.
+
+## Faz 1 eklentileri
+- Kayıt (davetli/açık seçenekli), parola sıfırlama, çıkış, hesap silme (KVKK), aydınlatma metni ve kullanım şartları (TASLAK, doldurulmalı)
+- E-posta ve Supabase ayarları için: `docs/EPOSTA_KURULUM.md`
