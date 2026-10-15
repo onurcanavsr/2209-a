@@ -29,3 +29,10 @@ Yapay zekâ destekli, erişilebilir akademik içerik platformu (TÜBİTAK 2209-A
 ## Faz 1 eklentileri
 - Kayıt (davetli/açık seçenekli), parola sıfırlama, çıkış, hesap silme (KVKK), aydınlatma metni ve kullanım şartları (TASLAK, doldurulmalı)
 - E-posta ve Supabase ayarları için: `docs/EPOSTA_KURULUM.md`
+
+## Faz 2: belge yükleme ve metin çıkarma
+- `api/app/extract.py`: PDF (pypdfium2), Word, PowerPoint; taranmış PDF'ler için Tesseract OCR (tur+eng)
+- `api/app/store.py`: veri katmanı (her sorgu `user_id` ile sınırlı), `api/app/routers/documents.py`: yükleme/liste/detay/silme
+- Yüklenen dosya SAKLANMAZ; yalnızca çıkarılan metin kaydedilir. Aynı dosya aynı kullanıcı için yeniden işlenmez (önbellek).
+- Supabase'de `0003_documents_phase2.sql` çalıştırılmalıdır.
+- Testler: `cd api && pytest` (35 test, gerçek OCR testi dahil)

@@ -37,3 +37,18 @@ input[type=text],input[type=email],input[type=password]{width:100%;font:inherit;
 .msg.err{background:var(--errbg);color:var(--err)}
 .msg.ok{background:var(--okbg);color:var(--ok)}
 .links{margin:18px 0 0;display:flex;gap:16px;flex-wrap:wrap}
+.sub{color:var(--mut);margin:0 0 22px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.drop{border:2px dashed var(--bd);border-radius:14px;padding:26px;text-align:center;background:var(--bg)}
+.drop.drag{border-color:var(--pri);background:var(--surf2)}
+.sr-file{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.sr-file:focus-visible + .hint, input.sr-file:focus-visible{outline:3px solid var(--pri)}
+.drop:focus-within label.btn{outline:3px solid var(--pri);outline-offset:3px}
+.doclist{list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.docrow{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:center}
+.doctitle{font-weight:700;font-size:1.05rem;word-break:break-word}
+.badge{display:inline-block;border-radius:20px;padding:2px 12px;font-size:.88rem;background:var(--surf2);color:var(--txt);border:1px solid var(--bd)}
+.badge.ready{background:var(--okbg);color:var(--ok);border-color:transparent}
+.badge.failed{background:var(--errbg);color:var(--err);border-color:transparent}
+.msg.warn{background:var(--surf2);color:var(--txt);border:1px solid var(--bd)}
+.doctext{white-space:pre-wrap;word-break:break-word;background:var(--surf);border:1px solid var(--bd);border-radius:12px;padding:16px 18px;max-height:60vh;overflow:auto}

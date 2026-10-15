@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     max_upload_mb: int = 10
     daily_limit_per_user: int = 20
+    max_pages: int = 300
+    ocr_max_pages: int = 40
+    max_text_chars: int = 400_000
+    max_uncompressed_mb: int = 300
+    max_concurrent_extractions: int = 2
 
 
 @lru_cache
