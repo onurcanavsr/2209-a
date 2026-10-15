@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import get_settings
-from .routers import documents, me
+from .routers import documents, me, summaries
 from .store import StoreError, get_store
 
 log = logging.getLogger(__name__)
@@ -42,6 +42,7 @@ async def store_error_handler(request, exc):
 # Her yeni router varsayılan olarak girişli olmalıdır (Depends(get_current_user)).
 app.include_router(me.router)
 app.include_router(documents.router)
+app.include_router(summaries.router)
 
 
 @app.get("/health", include_in_schema=False)  # tek kamusal uç nokta (izleme için)

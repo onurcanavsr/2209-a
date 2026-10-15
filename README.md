@@ -36,3 +36,10 @@ Yapay zekâ destekli, erişilebilir akademik içerik platformu (TÜBİTAK 2209-A
 - Yüklenen dosya SAKLANMAZ; yalnızca çıkarılan metin kaydedilir. Aynı dosya aynı kullanıcı için yeniden işlenmez (önbellek).
 - Supabase'de `0003_documents_phase2.sql` çalıştırılmalıdır.
 - Testler: `cd api && pytest` (35 test, gerçek OCR testi dahil)
+
+## Faz 3: özetleme
+- `api/app/summarize.py`: kısa/orta/ayrıntılı özet; 60.000 karakteri aşan belgeler bölümlere ayrılıp ucuz modelle özetlenir (map), nihai özet kaliteli modelle akıtılır (reduce)
+- `api/app/routers/summaries.py`: `POST /api/documents/{id}/summarize` (SSE akışı), `GET /api/documents/{id}/summaries`
+- Özetler `0004_summaries.sql` ile saklanır; aynı belge+seviye için tekrar model çağrılmaz. Günlük sınır: `DAILY_SUMMARY_LIMIT`.
+- Gerekli: sunucu `.env` içinde `ANTHROPIC_API_KEY`
+- Testler: 49 (`cd api && pytest`), sahte model kullanır; gerçek modelle deneme sizin ilk özetinizdir.

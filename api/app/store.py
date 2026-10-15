@@ -103,6 +103,35 @@ class SupabaseStore:
         self._check(r)
 
 
+    # ---- özetler (Faz 3). Sahiplik, çağıran tarafından get_document(doc_id, user_id) ile doğrulanır ----
+    async def get_summary(self, doc_id: str, level: str) -> dict | None:
+        r = await self._c().get("/summaries", params={
+            "select": "level,content,model,created_at", "document_id": f"eq.{doc_id}", "level": f"eq.{level}", "limit": "1"})
+        self._check(r)
+        rows = r.json()
+        return rows[0] if rows else None
+
+    async def list_summaries(self, doc_id: str) -> list[dict]:
+        r = await self._c().get("/summaries", params={
+            "select": "level,content,model,created_at", "document_id": f"eq.{doc_id}"})
+        self._check(r)
+        return r.json()
+
+    async def save_summary(self, doc_id: str, level: str, content: str, model: str) -> None:
+        r = await self._c().post("/summaries", params={"on_conflict": "document_id,level"},
+                                 json={"document_id": doc_id, "level": level, "content": content, "model": model},
+                                 headers={"Prefer": "resolution=merge-duplicates"})
+        self._check(r)
+
+    async def count_actions_since(self, user_id: str, action: str, since: datetime) -> int:
+        r = await self._c().get("/usage_logs", params={
+            "select": "id", "user_id": f"eq.{user_id}", "action": f"eq.{action}", "created_at": f"gte.{since.isoformat()}",
+            "limit": "1"}, headers={"Prefer": "count=exact"})
+        self._check(r)
+        total = r.headers.get("content-range", "*/0").split("/")[-1]
+        return int(total) if total.isdigit() else 0
+
+
 _store: SupabaseStore | None = None
 
 

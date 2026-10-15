@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, hataMesaji, DURUM, type Belge } from "@/lib/api";
+import Ozetleme from "./Ozetleme";
 
 export default function BelgeDetay({ id }: { id: string }) {
   const router = useRouter();
@@ -53,6 +54,7 @@ export default function BelgeDetay({ id }: { id: string }) {
       </div>
       {doc.status === "failed" && <p className="msg err" role="alert">{doc.error}</p>}
       {doc.note && doc.status === "ready" && <p className="msg warn">{doc.note}</p>}
+      {doc.status === "ready" && <Ozetleme docId={id} />}
       {doc.status === "ready" && (
         <>
           <h2>Çıkarılan metin</h2>
