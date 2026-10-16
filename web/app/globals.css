@@ -60,3 +60,8 @@ input[type=text],input[type=email],input[type=password]{width:100%;font:inherit;
 .ozet{background:var(--bg);border-radius:12px;padding:6px 20px;margin:14px 0}
 .ozet h3{font-size:1.05rem;margin:18px 0 6px}
 .ozet ul{padding-left:22px}
+.player{background:var(--surf2);border-radius:14px;padding:14px 16px;margin:14px 0}
+.player .btn{width:auto;margin:0}
+.player select{font:inherit;color:var(--txt);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 8px}
+.pbar{height:8px;border-radius:8px;background:var(--bd);overflow:hidden;margin:4px 0}
+.pbar i{display:block;height:100%;background:var(--pri)}

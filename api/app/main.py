@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -5,8 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from . import audio_cache
 from .config import get_settings
-from .routers import documents, me, summaries
+from .routers import audio, documents, me, summaries
 from .store import StoreError, get_store
 
 log = logging.getLogger(__name__)
@@ -19,7 +21,9 @@ async def lifespan(app: FastAPI):
         await get_store().fail_stale_processing()
     except Exception:
         log.warning("Yarım kalan işler temizlenemedi", exc_info=True)
+    cleaner = asyncio.create_task(audio_cache.cleanup_loop())
     yield
+    cleaner.cancel()
     await get_store().close()
 
 
@@ -43,6 +47,7 @@ async def store_error_handler(request, exc):
 app.include_router(me.router)
 app.include_router(documents.router)
 app.include_router(summaries.router)
+app.include_router(audio.router)
 
 
 @app.get("/health", include_in_schema=False)  # tek kamusal uç nokta (izleme için)

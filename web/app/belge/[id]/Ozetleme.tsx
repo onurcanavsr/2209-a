@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiFetch, hataMesaji } from "@/lib/api";
 import { Ozet } from "@/lib/markdown";
+import Oynatici from "./Oynatici";
 
 type Seviye = "short" | "medium" | "detailed";
 const SEVIYELER: { id: Seviye; ad: string; ipucu: string }[] = [
@@ -10,7 +11,7 @@ const SEVIYELER: { id: Seviye; ad: string; ipucu: string }[] = [
   { id: "detailed", ad: "Ayrıntılı", ipucu: "bölüm bölüm" },
 ];
 
-export default function Ozetleme({ docId }: { docId: string }) {
+export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; baslik: string }) {
   const [seviye, setSeviye] = useState<Seviye>("medium");
   const [kayitli, setKayitli] = useState<Partial<Record<Seviye, string>>>({});
   const [akan, setAkan] = useState("");
@@ -113,6 +114,10 @@ export default function Ozetleme({ docId }: { docId: string }) {
         <div className="ozet" aria-busy={calisiyor} aria-label={`${SEVIYELER.find((s) => s.id === seviye)?.ad} özet`} role="region">
           <Ozet text={calisiyor ? akan : (kayitli[seviye] ?? akan)} />
         </div>
+      )}
+      {!calisiyor && kayitli[seviye] && (
+        <Oynatici key={`ozet-${seviye}`} docId={docId} source="summary" level={seviye} etiket="Özeti dinle"
+          dosyaAdi={`${belgeAdi.replace(/\.[^.]+$/, "")} - özet.mp3`} />
       )}
       <p className="hint">Özet yapay zekâ tarafından üretilir ve hata içerebilir; önemli konularda asıl metni kontrol edin.</p>
     </section>

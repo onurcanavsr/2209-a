@@ -8,6 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Up
 from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
+from .. import audio_cache
 from ..auth import CurrentUser, get_current_user
 from ..config import get_settings
 from ..extract import ExtractError, UnsupportedFile, clean_filename, detect_kind, extract
@@ -130,4 +131,5 @@ async def get_document(doc_id: str, user: CurrentUser = Depends(get_current_user
 async def delete_document(doc_id: str, user: CurrentUser = Depends(get_current_user), store=Depends(get_store)):
     if not await store.delete_document(_uuid(doc_id), user.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Belge bulunamadı")
+    await run_in_threadpool(audio_cache.purge_document, user.id, _uuid(doc_id))
     return Response(status_code=status.HTTP_204_NO_CONTENT)

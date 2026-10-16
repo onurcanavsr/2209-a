@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, hataMesaji, DURUM, type Belge } from "@/lib/api";
 import Ozetleme from "./Ozetleme";
+import Oynatici from "./Oynatici";
 
 export default function BelgeDetay({ id }: { id: string }) {
   const router = useRouter();
@@ -54,9 +55,13 @@ export default function BelgeDetay({ id }: { id: string }) {
       </div>
       {doc.status === "failed" && <p className="msg err" role="alert">{doc.error}</p>}
       {doc.note && doc.status === "ready" && <p className="msg warn">{doc.note}</p>}
-      {doc.status === "ready" && <Ozetleme docId={id} />}
+      {doc.status === "ready" && <Ozetleme docId={id} baslik={doc.title} />}
       {doc.status === "ready" && (
         <>
+          <h2>Metni dinle</h2>
+          <Oynatici key="metin" docId={id} source="text" etiket="Metni dinle"
+            dosyaAdi={`${doc.title.replace(/\.[^.]+$/, "")} - metin.mp3`} indirilebilir={(doc.char_count ?? 0) <= 60000} />
+          <p className="hint">Metnin tamamını dinlemek günlük sesli okuma kotanızdan düşer; özeti dinlemek çok daha kısadır.</p>
           <h2>Çıkarılan metin</h2>
           <div className="doctext" tabIndex={0} role="region" aria-label="Çıkarılan metin (okumak için ok tuşlarını kullanın)">
             {doc.text_preview}

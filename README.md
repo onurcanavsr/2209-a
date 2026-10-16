@@ -43,3 +43,11 @@ Yapay zekâ destekli, erişilebilir akademik içerik platformu (TÜBİTAK 2209-A
 - Özetler `0004_summaries.sql` ile saklanır; aynı belge+seviye için tekrar model çağrılmaz. Günlük sınır: `DAILY_SUMMARY_LIMIT`.
 - Gerekli: sunucu `.env` içinde `ANTHROPIC_API_KEY`
 - Testler: 49 (`cd api && pytest`), sahte model kullanır; gerçek modelle deneme sizin ilk özetinizdir.
+
+## Faz 4: seslendirme
+- `api/app/speech.py`: Markdown temizleme, cümle/bölüm ayırma; `api/app/tts/`: sağlayıcılar (edge-tts, Azure Speech)
+- `api/app/routers/audio.py`: `/audio/manifest`, `/audio/segment/{n}`, `/audio/download` (özet veya asıl metin)
+- Bölümler sunucu diskinde (`/data/audio`, Docker volume `audio_data`) `AUDIO_TTL_DAYS` gün saklanır; belge/hesap silinince hemen silinir
+- Günlük kota: `DAILY_TTS_CHARS` (yalnızca yeni sentezlenen karakterler sayılır, önbellekten dinlemek ücretsizdir)
+- Oynatıcı: `web/app/belge/[id]/Oynatici.tsx` (hız, ses, ±10 sn, bölüm atlama, MP3 indirme)
+- Testler: 71 (`cd api && pytest`)

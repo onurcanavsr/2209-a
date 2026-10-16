@@ -42,6 +42,8 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    volumes:
+      - audio_data:/data/audio
     networks: [edge, internal]
     depends_on: [redis]
 
@@ -57,5 +59,6 @@ networks:
     internal: true   # internete çıkışı yok, yalnızca api erişir
 
 volumes:
+  audio_data:
   caddy_data:
   caddy_config:

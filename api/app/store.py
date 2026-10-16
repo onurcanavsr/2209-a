@@ -132,6 +132,15 @@ class SupabaseStore:
         return int(total) if total.isdigit() else 0
 
 
+    async def sum_units_since(self, user_id: str, action: str, since: datetime) -> int:
+        """Günlük kota için: bir eylemin 'units' toplamı (ses kotasında karakter sayısı)."""
+        r = await self._c().get("/usage_logs", params={
+            "select": "units", "user_id": f"eq.{user_id}", "action": f"eq.{action}",
+            "created_at": f"gte.{since.isoformat()}", "limit": "5000"})
+        self._check(r)
+        return sum(int(row.get("units") or 0) for row in r.json())
+
+
 _store: SupabaseStore | None = None
 
 

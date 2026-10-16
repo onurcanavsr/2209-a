@@ -2,6 +2,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
+from .. import audio_cache
 from ..auth import CurrentUser, get_current_user, require_admin
 from ..supabase_admin import delete_auth_user
 
@@ -29,6 +30,10 @@ async def delete_me(user: CurrentUser = Depends(get_current_user)):
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, "Hesap şu anda silinemedi, lütfen tekrar deneyin."
         )
+    try:
+        audio_cache.purge_user(user.id)
+    except Exception:
+        log.exception("Ses dosyaları silinemedi (kullanıcı %s)", user.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
