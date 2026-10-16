@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -146,6 +147,18 @@ async def segment(doc_id: str, n: int, source: Source = "summary", level: Level 
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Bölüm bulunamadı")
     data = await _ensure(store, provider, user.id, doc["id"], _voice(voice), segs[n])
     return Response(content=data, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=3600"})
+
+
+@router.get("/{doc_id}/audio/segment/{n}/text")
+async def segment_text(doc_id: str, n: int, source: Source = "summary", level: Level = "medium",
+                       user: CurrentUser = Depends(get_current_user), store=Depends(get_store)):
+    """Bölümün SESLENDİRİLEN metni (Markdown temizlenmiş hali). Okuma sırasında kelime vurgusu için kullanılır.
+    Sentezleme yapmaz, kota harcamaz."""
+    _, segs = await _segments(store, user.id, doc_id, source, level)
+    if n < 0 or n >= len(segs):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Bölüm bulunamadı")
+    return Response(content=json.dumps({"index": n, "text": segs[n]}, ensure_ascii=False),
+                    media_type="application/json", headers={"Cache-Control": "private, max-age=3600"})
 
 
 @router.get("/{doc_id}/audio/download")

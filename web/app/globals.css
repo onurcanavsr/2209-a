@@ -75,3 +75,10 @@ legend{font-weight:700;padding:0;margin-bottom:6px}
 .opt.dogru{border-color:var(--ok);background:var(--okbg)}
 .opt.yanlis{border-color:var(--err);background:var(--errbg)}
 details summary{cursor:pointer;font-weight:700;margin:8px 0}
+
+/* Faz 5b: sesli okumada kelime vurgusu */
+.takip{position:relative;max-height:11rem;overflow:auto;background:var(--bg);border:1px solid var(--bd);border-radius:12px;padding:12px 16px;margin-top:12px;line-height:2;cursor:pointer}
+.takip .k{border-radius:6px;padding:1px 2px}
+.takip .k.on{background:var(--pri);color:var(--pri-t);font-weight:700;text-decoration:underline;text-underline-offset:4px}
+@media (forced-colors:active){.takip .k.on{forced-color-adjust:none;background:Highlight;color:HighlightText}}
+.btn.sec[aria-pressed=true]{background:var(--pri);color:var(--pri-t);font-weight:700;border-color:transparent}

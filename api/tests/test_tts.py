@@ -294,3 +294,37 @@ def test_cache_paths_reject_traversal(env):
     with pytest.raises(ValueError):
         audio_cache.path_for("11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222", "../x")
     audio_cache.purge_user("../../")        # geçersiz kimlik: hiçbir şey silinmez, hata vermez
+
+
+# ---------- Faz 5b: kelime vurgusu için bölüm metni ----------
+def test_segment_text_matches_what_is_spoken_and_costs_nothing(env):
+    st, tts, _ = env
+    d = doc_with_summary(st)
+    r = get(f"/api/documents/{d}/audio/segment/0/text")
+    assert r.status_code == 200 and r.json()["index"] == 0
+    get(f"/api/documents/{d}/audio/segment/0")                       # aynı bölüm gerçekten seslendirilir
+    assert r.json()["text"] == tts.calls[0][1]                       # vurgulanan metin = okunan metin
+    assert "**" not in r.json()["text"] and "##" not in r.json()["text"]
+    n_tts = len(tts.calls)
+    get(f"/api/documents/{d}/audio/segment/0/text")
+    assert len(tts.calls) == n_tts and len([u for u in st.units if u[1] == "tts"]) == 1  # metin isteği kota harcamaz
+
+
+def test_segment_text_text_source_and_bounds(env):
+    st, _, _ = env
+    d = doc_with_summary(st)
+    st.docs[d]["raw_text"] = "Mitokondri enerji üretir.\nATP oluşur."
+    r = get(f"/api/documents/{d}/audio/segment/0/text", source="text")
+    assert r.status_code == 200 and "Mitokondri enerji üretir. ATP oluşur." in r.json()["text"]
+    assert get(f"/api/documents/{d}/audio/segment/999/text").status_code == 404
+    assert get(f"/api/documents/{d}/audio/segment/-1/text").status_code == 404
+    assert get(f"/api/documents/{d}/audio/segment/0/text", level="short").status_code == 404  # özet yok
+
+
+def test_segment_text_login_and_isolation(env):
+    st, tts, _ = env
+    d = doc_with_summary(st, ALICE)
+    assert client.get(f"/api/documents/{d}/audio/segment/0/text").status_code == 401
+    assert get(f"/api/documents/{d}/audio/segment/0/text", user=BOB).status_code == 404
+    assert tts.calls == []
+

@@ -60,3 +60,8 @@ Yapay zekâ destekli, erişilebilir akademik içerik platformu (TÜBİTAK 2209-A
 - Arayüz: `web/app/belge/[id]/SoruCevap.tsx`, `Quiz.tsx` (radyo grupları, durum duyuruları, doğru/yanlış renge ek olarak metinle belirtilir).
 - Testler: `api/tests/test_qa.py`, `test_quiz.py` (sahte depo ve sahte model kullanır).
 
+## Faz 5b: sesli okumada kelime vurgusu
+- Okunan kelime, `web/app/belge/[id]/Oynatici.tsx` içindeki "takip metni" kutusunda vurgulanır; bir kelimeye tıklayınca ses oradan devam eder. "Kelime vurgusu" düğmesiyle kapatılır (tercih tarayıcıda hatırlanır).
+- Sağlayıcılardan kelime zamanı gelmediği için `web/lib/takip.ts`, her kelimenin zamanını sesin gerçek süresine, kelime uzunluğuna ve noktalama duraklamalarına göre orantılı hesaplar. Edge/Azure ve önbellekten bağımsızdır; yaklaşıktır (birkaç kelimelik sapma olabilir).
+- Yeni uç nokta: `GET /api/documents/{id}/audio/segment/{n}/text` — o bölümde SESLENDİRİLEN metni döndürür (kota harcamaz). Vurgulanan metin ile okunan metin aynı kaynaktan gelir.
+
