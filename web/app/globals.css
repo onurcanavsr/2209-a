@@ -65,3 +65,13 @@ input[type=text],input[type=email],input[type=password]{width:100%;font:inherit;
 .player select{font:inherit;color:var(--txt);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 8px}
 .pbar{height:8px;border-radius:8px;background:var(--bd);overflow:hidden;margin:4px 0}
 .pbar i{display:block;height:100%;background:var(--pri)}
+
+/* Faz 5: soru-cevap ve test */
+.qa-item{border-top:1px solid var(--bd);padding-top:12px;margin-top:14px}
+fieldset{border:0;padding:0;margin:18px 0}
+legend{font-weight:700;padding:0;margin-bottom:6px}
+.opt{display:flex;gap:10px;align-items:flex-start;font-weight:400;margin:6px 0;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--surf);cursor:pointer}
+.opt input{width:20px;height:20px;margin-top:2px;accent-color:var(--pri);flex:none}
+.opt.dogru{border-color:var(--ok);background:var(--okbg)}
+.opt.yanlis{border-color:var(--err);background:var(--errbg)}
+details summary{cursor:pointer;font-weight:700;margin:8px 0}

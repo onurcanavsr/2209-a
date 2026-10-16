@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     max_upload_mb: int = 10
     daily_limit_per_user: int = 20
     daily_summary_limit: int = 30
+    daily_qa_limit: int = 60              # kullanıcı başına günlük soru sayısı
+    daily_quiz_limit: int = 15            # kullanıcı başına günlük test üretimi
     tts_provider: str = "edge"            # "edge" (ücretsiz, resmî olmayan) | "azure" (resmî)
     tts_voice: str = "tr-TR-EmelNeural"
     azure_speech_key: str = ""

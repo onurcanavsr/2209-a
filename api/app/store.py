@@ -141,6 +141,72 @@ class SupabaseStore:
         return sum(int(row.get("units") or 0) for row in r.json())
 
 
+    # ---- soru-cevap ve testler (Faz 5). Her sorgu user_id ile sınırlıdır ----
+    async def add_qa(self, doc_id: str, user_id: str, question: str, answer: str, sources: list, model: str) -> None:
+        r = await self._c().post("/qa_messages", json={
+            "document_id": doc_id, "user_id": user_id, "question": question,
+            "answer": answer, "sources": sources, "model": model})
+        self._check(r)
+
+    async def list_qa(self, doc_id: str, user_id: str, limit: int = 50) -> list[dict]:
+        """En yeni 'limit' kayıt, eskiden yeniye sıralı döner."""
+        r = await self._c().get("/qa_messages", params={
+            "select": "id,question,answer,sources,created_at", "document_id": f"eq.{doc_id}",
+            "user_id": f"eq.{user_id}", "order": "created_at.desc", "limit": str(limit)})
+        self._check(r)
+        return list(reversed(r.json()))
+
+    async def delete_qa(self, doc_id: str, user_id: str) -> None:
+        r = await self._c().delete("/qa_messages", params={"document_id": f"eq.{doc_id}", "user_id": f"eq.{user_id}"})
+        self._check(r)
+
+    async def create_quiz(self, row: dict) -> dict:
+        r = await self._c().post("/quizzes", json=row, headers={"Prefer": "return=representation"})
+        self._check(r)
+        return r.json()[0]
+
+    async def get_quiz(self, quiz_id: str, user_id: str) -> dict | None:
+        r = await self._c().get("/quizzes", params={
+            "select": "id,document_id,difficulty,question_count,questions,created_at",
+            "id": f"eq.{quiz_id}", "user_id": f"eq.{user_id}", "limit": "1"})
+        self._check(r)
+        rows = r.json()
+        return rows[0] if rows else None
+
+    async def list_quizzes(self, doc_id: str, user_id: str) -> list[dict]:
+        r = await self._c().get("/quizzes", params={
+            "select": "id,difficulty,question_count,created_at", "document_id": f"eq.{doc_id}",
+            "user_id": f"eq.{user_id}", "order": "created_at.desc", "limit": "50"})
+        self._check(r)
+        return r.json()
+
+    async def count_quizzes(self, doc_id: str, user_id: str) -> int:
+        r = await self._c().get("/quizzes", params={
+            "select": "id", "document_id": f"eq.{doc_id}", "user_id": f"eq.{user_id}", "limit": "1"},
+            headers={"Prefer": "count=exact"})
+        self._check(r)
+        total = r.headers.get("content-range", "*/0").split("/")[-1]
+        return int(total) if total.isdigit() else 0
+
+    async def delete_quiz(self, quiz_id: str, user_id: str) -> bool:
+        r = await self._c().delete("/quizzes", params={"id": f"eq.{quiz_id}", "user_id": f"eq.{user_id}"},
+                                   headers={"Prefer": "return=representation"})
+        self._check(r)
+        return len(r.json()) > 0
+
+    async def add_attempt(self, row: dict) -> dict:
+        r = await self._c().post("/quiz_attempts", json=row, headers={"Prefer": "return=representation"})
+        self._check(r)
+        return r.json()[0]
+
+    async def list_attempts(self, quiz_id: str, user_id: str) -> list[dict]:
+        r = await self._c().get("/quiz_attempts", params={
+            "select": "id,score,total,created_at", "quiz_id": f"eq.{quiz_id}", "user_id": f"eq.{user_id}",
+            "order": "created_at.desc", "limit": "50"})
+        self._check(r)
+        return r.json()
+
+
 _store: SupabaseStore | None = None
 
 

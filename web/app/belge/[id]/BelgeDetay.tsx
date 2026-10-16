@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { apiFetch, hataMesaji, DURUM, type Belge } from "@/lib/api";
 import Ozetleme from "./Ozetleme";
 import Oynatici from "./Oynatici";
+import SoruCevap from "./SoruCevap";
+import Quiz from "./Quiz";
 
 export default function BelgeDetay({ id }: { id: string }) {
   const router = useRouter();
@@ -56,6 +58,8 @@ export default function BelgeDetay({ id }: { id: string }) {
       {doc.status === "failed" && <p className="msg err" role="alert">{doc.error}</p>}
       {doc.note && doc.status === "ready" && <p className="msg warn">{doc.note}</p>}
       {doc.status === "ready" && <Ozetleme docId={id} baslik={doc.title} />}
+      {doc.status === "ready" && <SoruCevap docId={id} />}
+      {doc.status === "ready" && <Quiz docId={id} />}
       {doc.status === "ready" && (
         <>
           <h2>Metni dinle</h2>

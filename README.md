@@ -51,3 +51,12 @@ Yapay zekâ destekli, erişilebilir akademik içerik platformu (TÜBİTAK 2209-A
 - Günlük kota: `DAILY_TTS_CHARS` (yalnızca yeni sentezlenen karakterler sayılır, önbellekten dinlemek ücretsizdir)
 - Oynatıcı: `web/app/belge/[id]/Oynatici.tsx` (hız, ses, ±10 sn, bölüm atlama, MP3 indirme)
 - Testler: 71 (`cd api && pytest`)
+
+## Faz 5: soru-cevap ve pekiştirme soruları (quiz)
+- `api/app/qa.py` + `api/app/routers/qa.py`: `POST /api/documents/{id}/ask` (SSE), `GET|DELETE /api/documents/{id}/qa`. Arama harici embedding servisi gerektirmez: Türkçeye uyarlanmış BM25 (küçük harf/İ-I kuralı, aksan sadeleştirme, ek yok sayan 5 harfli kök). 30.000 karakterden kısa belgeler aramasız, tümüyle modele verilir. Cevap yalnızca belgeye dayanır, belgede yoksa söyler; cevapta anılan `[Bölüm n]` kaynakları ayrıca döner.
+- `api/app/quiz.py` + `api/app/routers/quiz.py`: `POST|GET /api/documents/{id}/quizzes`, `GET|DELETE /api/quizzes/{id}`, `POST|GET /api/quizzes/{id}/attempts`. Model JSON üretir; sunucu doğrular (4 farklı şık, geçerli cevap, "hepsi/hiçbiri" şıkları ve kopya sorular elenir), şıkları karıştırır. Doğru cevap ve açıklamalar istemciye YALNIZCA puanlamadan sonra gider.
+- Veritabanı: `0005_qa_quiz.sql` (`qa_messages`, `quizzes`, `quiz_attempts`; RLS açık). Supabase SQL Editor'de çalıştırılmalıdır. `document_chunks` tablosu kullanılmaz.
+- Günlük sınırlar: `DAILY_QA_LIMIT` (60), `DAILY_QUIZ_LIMIT` (15); belge başına en fazla 20 test saklanır.
+- Arayüz: `web/app/belge/[id]/SoruCevap.tsx`, `Quiz.tsx` (radyo grupları, durum duyuruları, doğru/yanlış renge ek olarak metinle belirtilir).
+- Testler: `api/tests/test_qa.py`, `test_quiz.py` (sahte depo ve sahte model kullanır).
+

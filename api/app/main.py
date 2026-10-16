@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from . import audio_cache
 from .config import get_settings
-from .routers import audio, documents, me, summaries
+from .routers import audio, documents, me, qa, quiz, summaries
 from .store import StoreError, get_store
 
 log = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
     await get_store().close()
 
 
-app = FastAPI(title="Akademik Asistan API", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="Akademik Asistan API", version="0.3.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -48,6 +48,8 @@ app.include_router(me.router)
 app.include_router(documents.router)
 app.include_router(summaries.router)
 app.include_router(audio.router)
+app.include_router(qa.router)
+app.include_router(quiz.router)
 
 
 @app.get("/health", include_in_schema=False)  # tek kamusal uç nokta (izleme için)
