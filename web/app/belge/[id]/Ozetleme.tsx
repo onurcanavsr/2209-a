@@ -1,7 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, hataMesaji } from "@/lib/api";
 import { Ozet } from "@/lib/markdown";
+import { ozetAgaci, ozetKelimeleri } from "@/lib/ozetAgaci";
+import { vurguIsaretle } from "@/lib/vurgu";
 import Oynatici from "./Oynatici";
 
 type Seviye = "short" | "medium" | "detailed";
@@ -19,6 +21,16 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
   const [durum, setDurum] = useState("");
   const [hata, setHata] = useState("");
   const baslik = useRef<HTMLHeadingElement>(null);
+  const ozetKap = useRef<HTMLDivElement>(null);
+  const onceki = useRef(-1);
+  // Sesli okumada okunan kelime, ekrandaki özetin kendi üzerinde işaretlenir (ayrı bir kutu yok)
+  const kayitliMetin = kayitli[seviye] ?? "";
+  const gorunen = useMemo(() => ozetKelimeleri(ozetAgaci(kayitliMetin)), [kayitliMetin]);
+  const isaretle = useCallback((i: number) => {
+    vurguIsaretle(ozetKap.current, onceki.current, i);
+    onceki.current = i;
+  }, []);
+  useEffect(() => { onceki.current = -1; }, [kayitliMetin, calisiyor]);
 
   useEffect(() => {
     (async () => {
@@ -111,12 +123,13 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
       <div role="alert" aria-live="assertive">{hata && <p className="msg err">{hata}</p>}</div>
 
       {(gosterilen || metin) && (
-        <div className="ozet" aria-busy={calisiyor} aria-label={`${SEVIYELER.find((s) => s.id === seviye)?.ad} özet`} role="region">
-          <Ozet text={calisiyor ? akan : (kayitli[seviye] ?? akan)} />
+        <div className="ozet" ref={ozetKap} aria-busy={calisiyor} aria-label={`${SEVIYELER.find((s) => s.id === seviye)?.ad} özet`} role="region">
+          <Ozet text={calisiyor ? akan : (kayitli[seviye] ?? akan)} kelimeler={!calisiyor && Boolean(kayitliMetin)} />
         </div>
       )}
       {!calisiyor && kayitli[seviye] && (
-        <Oynatici key={`ozet-${seviye}`} docId={docId} source="summary" level={seviye} etiket="Özeti dinle"
+        <Oynatici key={`ozet-${seviye}-${kayitliMetin.length}`} docId={docId} source="summary" level={seviye} etiket="Özeti dinle"
+          gorunen={gorunen} onAktif={isaretle}
           dosyaAdi={`${belgeAdi.replace(/\.[^.]+$/, "")} - özet.mp3`} />
       )}
       <p className="hint">Özet yapay zekâ tarafından üretilir ve hata içerebilir; önemli konularda asıl metni kontrol edin.</p>

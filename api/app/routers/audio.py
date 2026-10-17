@@ -1,6 +1,5 @@
 import asyncio
 import hashlib
-import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -25,6 +24,7 @@ Source = Literal["summary", "text"]
 Level = Literal["short", "medium", "detailed"]
 VOICES = {"tr-TR-EmelNeural": "Emel (kadın)", "tr-TR-AhmetNeural": "Ahmet (erkek)"}
 CHARS_PER_SECOND = 14  # yaklaşık konuşma hızı (süre tahmini için)
+WORDS_MAX_CHARS = 60_000  # kelime vurgusu için tek seferde döndürülen en çok metin
 
 _sems: dict[int, asyncio.Semaphore] = {}
 _locks: dict[str, asyncio.Lock] = {}
@@ -149,16 +149,20 @@ async def segment(doc_id: str, n: int, source: Source = "summary", level: Level 
     return Response(content=data, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=3600"})
 
 
-@router.get("/{doc_id}/audio/segment/{n}/text")
-async def segment_text(doc_id: str, n: int, source: Source = "summary", level: Level = "medium",
-                       user: CurrentUser = Depends(get_current_user), store=Depends(get_store)):
-    """Bölümün SESLENDİRİLEN metni (Markdown temizlenmiş hali). Okuma sırasında kelime vurgusu için kullanılır.
-    Sentezleme yapmaz, kota harcamaz."""
+@router.get("/{doc_id}/audio/text")
+async def audio_text(doc_id: str, source: Source = "summary", level: Level = "medium",
+                     user: CurrentUser = Depends(get_current_user), store=Depends(get_store)):
+    """Bölümlerin SESLENDİRİLEN metni (Markdown temizlenmiş hali). İstemci, okunan kelimeyi ekrandaki metinde
+    vurgulamak için bunu ekrandaki metinle eşleştirir. Sentezleme yapmaz, kota harcamaz.
+    Çok uzun belgelerde yalnızca ilk WORDS_MAX_CHARS karakterlik bölümler döner (ekranda da yalnızca ön izleme gösterilir)."""
     _, segs = await _segments(store, user.id, doc_id, source, level)
-    if n < 0 or n >= len(segs):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Bölüm bulunamadı")
-    return Response(content=json.dumps({"index": n, "text": segs[n]}, ensure_ascii=False),
-                    media_type="application/json", headers={"Cache-Control": "private, max-age=3600"})
+    out, used = [], 0
+    for sg in segs:
+        if used >= WORDS_MAX_CHARS:
+            break
+        out.append(sg)
+        used += len(sg)
+    return {"segments": out, "total_segments": len(segs), "truncated": len(out) < len(segs)}
 
 
 @router.get("/{doc_id}/audio/download")

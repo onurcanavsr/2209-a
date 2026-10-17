@@ -62,3 +62,42 @@ export function zamanBul(t: Takip, i: number, sure: number): number {
   const j = Math.min(Math.max(i, 0), t.kelimeler.length - 1);
   return Math.min(sure, BASLANGIC_SN + t.bas[j] * etkin);
 }
+
+// ---- Seslendirilen kelimeleri ekrandaki kelimelerle eşleştirme ----
+const norm = (w: string) => w.toLocaleLowerCase("tr").replace(/[^\p{L}\p{N}]/gu, "");
+
+// konusulan[i] → ekrandaki kelime sırası (eşleşmezse -1). Metinler noktalama ve biçim açısından
+// birebir aynı olmadığı için (ör. eklenen noktalar, "Slayt 3", tablo ayraçları) sırayla ve
+// önce yakın, bulunamazsa uzak bir aralıkta aranır; böylece küçük farklar sonraki kelimeleri kaydırmaz.
+export function hizala(konusulan: string[], gorunen: string[]): Int32Array {
+  const hedef: { n: string; i: number }[] = [];
+  gorunen.forEach((w, i) => { const n = norm(w); if (n) hedef.push({ n, i }); });
+  const map = new Int32Array(konusulan.length).fill(-1);
+  const YAKIN = 8, UZAK = 80;
+  let j = 0;
+  for (let k = 0; k < konusulan.length; k++) {
+    const n = norm(konusulan[k]);
+    if (!n) continue;
+    let bulunan = -1;
+    for (let d = j; d < Math.min(hedef.length, j + YAKIN); d++) if (hedef[d].n === n) { bulunan = d; break; }
+    if (bulunan < 0 && n.length >= 5) {
+      for (let d = j + YAKIN; d < Math.min(hedef.length, j + UZAK); d++) if (hedef[d].n === n) { bulunan = d; break; }
+    }
+    if (bulunan >= 0) { map[k] = hedef[bulunan].i; j = bulunan + 1; continue; }
+    // Seslendirme tek ekran kelimesini birkaça bölmüş olabilir (ör. "snake_case" → "snake case"):
+    // ardışık 2-3 konuşulan kelimenin birleşimi ekrandaki kelimeyle eşleşirse hepsi ona bağlanır.
+    for (const uzun of [2, 3]) {
+      if (k + uzun > konusulan.length) break;
+      const birlesik = konusulan.slice(k, k + uzun).map(norm).join("");
+      let d = j;
+      for (; d < Math.min(hedef.length, j + YAKIN); d++) if (hedef[d].n === birlesik) break;
+      if (d < Math.min(hedef.length, j + YAKIN)) {
+        for (let x = k; x < k + uzun; x++) map[x] = hedef[d].i;
+        j = d + 1; k += uzun - 1;
+        break;
+      }
+    }
+  }
+  return map;
+}
+

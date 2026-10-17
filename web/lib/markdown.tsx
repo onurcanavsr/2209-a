@@ -1,35 +1,35 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
+import { ozetAgaci, type Oge, type Parca } from "./ozetAgaci";
 
 // Güvenli, küçük Markdown çevirici: yalnızca başlık (##), madde (-) ve **kalın**.
 // HTML üretmez (dangerouslySetInnerHTML yok), ekran okuyucu için gerçek h3/ul/li kullanır.
-function inline(text: string, key: string): ReactNode[] {
-  return text.split(/\*\*(.+?)\*\*/g).map((part, i) =>
-    i % 2 === 1 ? <strong key={`${key}-${i}`}>{part}</strong> : part
+// Ayrıştırma lib/ozetAgaci.ts'tedir; kelime vurgusu (sesli okuma) için aynı ağaçtan kelime numaraları üretilir.
+
+function parcalar(ps: Parca[]): ReactNode[] {
+  return ps.map((p, i) => (p.kalin ? <strong key={i}>{p.metin}</strong> : p.metin));
+}
+
+function Ogeler({ oge, kelimeler }: { oge: Oge[]; kelimeler: boolean }) {
+  return (
+    <>
+      {oge.map((o, i) =>
+        "bosluk" in o ? o.bosluk
+        : kelimeler ? <span key={i} data-w={o.no} className="k">{parcalar(o.parcalar)}</span>
+        : <Fragment key={i}>{parcalar(o.parcalar)}</Fragment>
+      )}
+    </>
   );
 }
 
-export function Ozet({ text }: { text: string }) {
-  const out: ReactNode[] = [];
-  let list: string[] = [];
-  let para: string[] = [];
-  const flushList = (k: number) => {
-    if (list.length) {
-      out.push(<ul key={`u${k}`}>{list.map((li, i) => <li key={i}>{inline(li, `l${k}-${i}`)}</li>)}</ul>);
-      list = [];
-    }
-  };
-  const flushPara = (k: number) => {
-    if (para.length) { out.push(<p key={`p${k}`}>{inline(para.join(" "), `p${k}`)}</p>); para = []; }
-  };
-  text.split("\n").forEach((raw, k) => {
-    const line = raw.trim();
-    const h = line.match(/^#{1,4}\s+(.*)$/);
-    const li = line.match(/^[-*•]\s+(.*)$/);
-    if (h) { flushList(k); flushPara(k); out.push(<h3 key={`h${k}`}>{inline(h[1], `h${k}`)}</h3>); }
-    else if (li) { flushPara(k); list.push(li[1]); }
-    else if (!line) { flushList(k); flushPara(k); }
-    else { flushList(k); para.push(line); }
-  });
-  flushList(9999); flushPara(9999);
-  return <>{out}</>;
+// kelimeler=true: her kelime <span data-w="n"> içine alınır (okunan kelimeyi işaretlemek için).
+export function Ozet({ text, kelimeler = false }: { text: string; kelimeler?: boolean }) {
+  return (
+    <>
+      {ozetAgaci(text).map((b, k) =>
+        b.tur === "baslik" ? <h3 key={k}><Ogeler oge={b.oge} kelimeler={kelimeler} /></h3>
+        : b.tur === "liste" ? <ul key={k}>{b.maddeler.map((m, i) => <li key={i}><Ogeler oge={m} kelimeler={kelimeler} /></li>)}</ul>
+        : <p key={k}><Ogeler oge={b.oge} kelimeler={kelimeler} /></p>
+      )}
+    </>
+  );
 }

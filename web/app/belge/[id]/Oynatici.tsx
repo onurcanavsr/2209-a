@@ -1,7 +1,7 @@
 "use client";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch, hataMesaji } from "@/lib/api";
-import { kelimeBul, oranHesapla, takipHazirla, zamanBul, type Takip } from "@/lib/takip";
+import { hizala, kelimeBul, oranHesapla, takipHazirla, type Takip } from "@/lib/takip";
 
 type Props = {
   docId: string;
@@ -10,11 +10,13 @@ type Props = {
   etiket: string;       // örn. "Özeti dinle"
   dosyaAdi: string;     // indirilen MP3'ün adı
   indirilebilir?: boolean;
+  gorunen?: string[];             // ekranda gösterilen metnin kelimeleri (okunan kelime bunlarla eşleştirilir)
+  onAktif?: (i: number) => void;  // okunan kelimenin ekrandaki sırası; vurgu bitince -1
 };
 const HIZLAR = [0.75, 1, 1.25, 1.5, 1.75, 2];
 
 // Bölüm bölüm (cümle gruplarıyla) çalar: ilk bölüm hazır olur olmaz başlar, sıradaki önceden hazırlanır.
-export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indirilebilir = true }: Props) {
+export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indirilebilir = true, gorunen, onAktif }: Props) {
   const [voices, setVoices] = useState<Record<string, string>>({});
   const [voice, setVoice] = useState("");
   const [rate, setRate] = useState(1);
@@ -26,8 +28,6 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-  const [takip, setTakip] = useState<Takip | null>(null);   // okunan bölümün kelimeleri
-  const [aktif, setAktif] = useState(-1);                    // şu an okunan kelime
   const [goster, setGoster] = useState(true);                // kelime vurgusu açık mı
 
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -41,8 +41,14 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
   const takipRef = useRef<Takip | null>(null);
   const aktifRef = useRef(-1);
   const tokenRef = useRef(0);   // hızlı bölüm değişiminde eski yanıtlar yenisini ezmesin
-  const kutu = useRef<HTMLDivElement>(null);
-  const metinler = useRef(new Map<number, string>());
+  const gosterRef = useRef(true);
+  const onAktifRef = useRef<Props["onAktif"]>(undefined);
+  const gorunenRef = useRef<string[] | null>(null);
+  const konusulanRef = useRef<{ seg: string[]; starts: number[] } | null>(null);  // seslendirilen bölüm metinleri
+  const eslesmeRef = useRef<Int32Array | null>(null);                              // seslendirilen kelime → ekran kelimesi
+  const konusulanSoz = useRef<Promise<void> | null>(null);
+  gosterRef.current = goster;
+  onAktifRef.current = onAktif;
 
   const qs = () => {
     const p = new URLSearchParams({ source });
@@ -52,34 +58,50 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
   };
 
   function temizle() {
-    metinler.current.clear();
     urls.current.forEach((p) => p.then((u) => URL.revokeObjectURL(u)).catch(() => {}));
     urls.current.clear();
   }
 
-  // Bölümün okunan metni. Başarısız olursa yalnızca vurgu çalışmaz, ses etkilenmez.
-  async function fetchMetin(n: number): Promise<string> {
-    const c = metinler.current.get(n);
-    if (c !== undefined) return c;
-    try {
-      const r = await apiFetch(`/api/documents/${docId}/audio/segment/${n}/text?${qs()}`);
-      if (!r.ok) return "";
-      const t: string = (await r.json()).text ?? "";
-      metinler.current.set(n, t);
-      return t;
-    } catch { return ""; }
+  // Seslendirilen metin (tüm bölümler) bir kez alınır. Başarısız olursa yalnızca vurgu çalışmaz, ses etkilenmez.
+  function konusulanYukle(): Promise<void> {
+    if (!konusulanSoz.current) {
+      konusulanSoz.current = (async () => {
+        try {
+          const r = await apiFetch(`/api/documents/${docId}/audio/text?${qs()}`);
+          if (!r.ok) { konusulanSoz.current = null; return; }
+          const j: { segments: string[] } = await r.json();
+          const starts: number[] = [];
+          let acc = 0;
+          for (const s of j.segments) { starts.push(acc); acc += s.split(/\s+/).filter(Boolean).length; }
+          konusulanRef.current = { seg: j.segments, starts };
+          eslemeHazirla();
+        } catch { konusulanSoz.current = null; }
+      })();
+    }
+    return konusulanSoz.current;
+  }
+
+  // Seslendirilen kelimeleri ekrandaki kelimelerle eşleştirir (metinler biçim olarak birebir aynı değildir).
+  function eslemeHazirla() {
+    const k = konusulanRef.current, g = gorunenRef.current;
+    eslesmeRef.current = k && g ? hizala(k.seg.flatMap((s) => s.split(/\s+/).filter(Boolean)), g) : null;
   }
 
   function yeniTakip(t: Takip | null) {
-    takipRef.current = t; setTakip(t);
-    aktifRef.current = -1; setAktif(-1);
+    takipRef.current = t;
+  }
+
+  function vurguTemizle() {
+    aktifRef.current = -1;
+    onAktifRef.current?.(-1);
   }
 
   function guncelle() {
-    const a = audio.current, t = takipRef.current;
-    if (!a || !t || !isFinite(a.duration) || a.duration <= 0) return;
-    const i = kelimeBul(t, oranHesapla(a.currentTime, a.duration));
-    if (i !== aktifRef.current) { aktifRef.current = i; setAktif(i); }
+    const a = audio.current, t = takipRef.current, k = konusulanRef.current, m = eslesmeRef.current;
+    if (!gosterRef.current || !a || !t || !k || !m || !isFinite(a.duration) || a.duration <= 0) return;
+    const yerel = kelimeBul(t, oranHesapla(a.currentTime, a.duration));
+    const d = m[k.starts[idxRef.current] + yerel] ?? -1;
+    if (d >= 0 && d !== aktifRef.current) { aktifRef.current = d; onAktifRef.current?.(d); }
   }
 
   function fetchSeg(n: number): Promise<string> {
@@ -114,7 +136,7 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
       a.onended = () => {
         const n = idxRef.current + 1;
         if (n < totalRef.current) startAt(n);
-        else { setPlaying(false); setStatus("Okuma tamamlandı."); idxRef.current = 0; setIdx(0); hasSrc.current = false; setStarted(false); yeniTakip(null); }
+        else { setPlaying(false); setStatus("Okuma tamamlandı."); idxRef.current = 0; setIdx(0); hasSrc.current = false; setStarted(false); yeniTakip(null); vurguTemizle(); }
       };
       audio.current = a;
     }
@@ -126,15 +148,16 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
     const my = ++tokenRef.current;
     idxRef.current = n; setIdx(n);
     try {
-      const [src, metin] = await Promise.all([fetchSeg(n), fetchMetin(n)]);
+      const [src] = await Promise.all([fetchSeg(n), gorunenRef.current ? konusulanYukle() : Promise.resolve()]);
       if (!alive.current || my !== tokenRef.current) return;
+      const metin = konusulanRef.current?.seg[n];
       yeniTakip(metin ? takipHazirla(metin) : null);        // ses ve metin birlikte hazır olunca değişir
       const a = getAudio();
       a.src = src;
       a.playbackRate = rateRef.current;
       await a.play();
       hasSrc.current = true; setStarted(true); setPlaying(true);
-      if (n + 1 < totalRef.current) { fetchSeg(n + 1).catch(() => {}); fetchMetin(n + 1); }   // sıradaki bölümü önceden hazırla
+      if (n + 1 < totalRef.current) fetchSeg(n + 1).catch(() => {});   // sıradaki bölümü önceden hazırla
       urls.current.forEach((p, k) => {                                   // bellek: eski bölümleri serbest bırak
         if (k < n - 2) { p.then((u) => URL.revokeObjectURL(u)).catch(() => {}); urls.current.delete(k); }
       });
@@ -176,18 +199,11 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
     if (n >= 0 && n < totalRef.current) { setStatus(`Bölüm ${n + 1}.`); startAt(n); }
   }
 
-  function kelimeyeGit(e: React.MouseEvent<HTMLDivElement>) {
-    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-i]");
-    const a = audio.current, t = takipRef.current;
-    if (!el || !a || !t || !isFinite(a.duration) || a.duration <= 0) return;
-    a.currentTime = zamanBul(t, Number(el.dataset.i), a.duration);
-    guncelle();
-  }
-
   function vurguDegistir() {
     const yeni = !goster;
-    setGoster(yeni);
+    gosterRef.current = yeni; setGoster(yeni);
     try { localStorage.setItem("takip-vurgu", yeni ? "1" : "0"); } catch {}
+    if (yeni) guncelle(); else vurguTemizle();
   }
 
   function hizDegistir(v: number) {
@@ -201,7 +217,7 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
     setPlaying(false); hasSrc.current = false; setStarted(false);
     temizle();
     voiceRef.current = v; setVoice(v);
-    idxRef.current = 0; setIdx(0); yeniTakip(null);
+    idxRef.current = 0; setIdx(0); yeniTakip(null); vurguTemizle();
     setStatus("Ses değişti. Dinlemek için düğmeye basın.");
     manifestYukle().catch(() => {});
   }
@@ -248,17 +264,12 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, goster]);
 
-  // Aktif kelime görünür alanın dışına çıkarsa kutuyu kaydırır (sayfayı değil)
+  // Ekrandaki metin değişirse (ör. özet yeniden üretildi) eşleştirme yeniden yapılır
   useEffect(() => {
-    const kap = kutu.current;
-    if (!kap || aktif < 0) return;
-    const el = kap.querySelector<HTMLElement>(`[data-i="${aktif}"]`);
-    if (!el) return;
-    const ust = el.offsetTop, alt = ust + el.offsetHeight;
-    if (ust < kap.scrollTop + 8 || alt > kap.scrollTop + kap.clientHeight - 8) {
-      kap.scrollTop = Math.max(0, ust - kap.clientHeight / 3);
-    }
-  }, [aktif, takip]);
+    gorunenRef.current = gorunen ?? null;
+    eslemeHazirla();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gorunen]);
 
   const dk = Math.max(1, Math.round(sure / 60));
   return (
@@ -285,9 +296,11 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
             </select>
           </>
         )}
-        <button type="button" className="btn sec" aria-pressed={goster} onClick={vurguDegistir}>
-          Kelime vurgusu
-        </button>
+        {gorunen && gorunen.length > 0 && (
+          <button type="button" className="btn sec" aria-pressed={goster} onClick={vurguDegistir}>
+            Kelime vurgusu
+          </button>
+        )}
         {indirilebilir && (
           <button type="button" className="btn sec" onClick={indir} disabled={busy}>MP3 indir</button>
         )}
@@ -301,16 +314,9 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
           <span className="hint">Bölüm {Math.min(idx + 1, total)} / {total} · yaklaşık {dk} dk</span>
         </div>
       )}
-      {/* Görsel takip metni: ekran okuyucu zaten sesi/asıl metni kullandığı için gizlenir, canlı bölge DEĞİLDİR */}
-      {goster && takip && (
-        <>
-          <div ref={kutu} className="takip" aria-hidden="true" onClick={kelimeyeGit}>
-            {takip.kelimeler.map((k, i) => (
-              <Fragment key={i}><span data-i={i} className={i === aktif ? "k on" : "k"}>{k}</span>{" "}</Fragment>
-            ))}
-          </div>
-          <p className="hint">Okunan kelime vurgulanır; bir kelimeye tıklayarak oradan devam edebilirsiniz. Vurgu ses süresine göre hesaplanır, bu yüzden bazen birkaç kelime sapabilir.</p>
-        </>
+      {/* Vurgu ekrandaki metnin üzerinde yapılır (canlı bölge DEĞİLDİR; ekran okuyucu sesi/metni kendi kullanır) */}
+      {started && goster && gorunen && gorunen.length > 0 && (
+        <p className="hint">Okunan kelime metin üzerinde vurgulanır. Vurgu ses süresine göre hesaplanır, bu yüzden bazen birkaç kelime sapabilir.</p>
       )}
       {/* Canlı bölge yalnızca önemli anları (başla/duraklat/bitti/hata) duyurur; her bölümü değil */}
       <div role="status" aria-live="polite">{status && <p className="hint">{status}</p>}</div>

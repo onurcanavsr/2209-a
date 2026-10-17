@@ -1,12 +1,14 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, hataMesaji, DURUM, type Belge } from "@/lib/api";
+import { vurguIsaretle } from "@/lib/vurgu";
 import Ozetleme from "./Ozetleme";
 import Oynatici from "./Oynatici";
 import SoruCevap from "./SoruCevap";
 import Quiz from "./Quiz";
+import VurguluMetin from "./VurguluMetin";
 
 export default function BelgeDetay({ id }: { id: string }) {
   const router = useRouter();
@@ -38,6 +40,15 @@ export default function BelgeDetay({ id }: { id: string }) {
     else setError(await hataMesaji(r, "Belge silinemedi."));
   }
 
+  // Metni dinlerken okunan kelime, aşağıdaki "Çıkarılan metin" üzerinde işaretlenir
+  const metinKap = useRef<HTMLDivElement>(null);
+  const onceki = useRef(-1);
+  const metinKelimeleri = useMemo(() => (doc?.text_preview ?? "").split(/\s+/).filter(Boolean), [doc?.text_preview]);
+  const isaretle = useCallback((i: number) => {
+    vurguIsaretle(metinKap.current, onceki.current, i);
+    onceki.current = i;
+  }, []);
+
   if (error) return <div><p className="msg err" role="alert">{error}</p><p><Link href="/">← Çalışma alanına dön</Link></p></div>;
   if (!doc) return <p>Yükleniyor…</p>;
 
@@ -64,13 +75,14 @@ export default function BelgeDetay({ id }: { id: string }) {
         <>
           <h2>Metni dinle</h2>
           <Oynatici key="metin" docId={id} source="text" etiket="Metni dinle"
+            gorunen={metinKelimeleri} onAktif={isaretle}
             dosyaAdi={`${doc.title.replace(/\.[^.]+$/, "")} - metin.mp3`} indirilebilir={(doc.char_count ?? 0) <= 60000} />
           <p className="hint">Metnin tamamını dinlemek günlük sesli okuma kotanızdan düşer; özeti dinlemek çok daha kısadır.</p>
           <h2>Çıkarılan metin</h2>
-          <div className="doctext" tabIndex={0} role="region" aria-label="Çıkarılan metin (okumak için ok tuşlarını kullanın)">
-            {doc.text_preview}
+          <div className="doctext" ref={metinKap} tabIndex={0} role="region" aria-label="Çıkarılan metin (okumak için ok tuşlarını kullanın)">
+            <VurguluMetin text={doc.text_preview ?? ""} />
           </div>
-          {uzun && <p className="hint">Burada metnin yalnızca ilk bölümü gösteriliyor. Özetleme ve sesli okuma tüm metni kullanacak.</p>}
+          {uzun && <p className="hint">Burada metnin yalnızca ilk bölümü gösteriliyor. Özetleme ve sesli okuma tüm metni kullanacak; kelime vurgusu yalnızca burada gösterilen bölümde çalışır.</p>}
         </>
       )}
       <p style={{ marginTop: 24 }}><button type="button" className="btn danger" style={{ width: "auto" }} onClick={sil}>Belgeyi sil</button></p>
