@@ -66,7 +66,7 @@ async def ask(doc_id: str, body: AskIn, user: CurrentUser = Depends(get_current_
         raise HTTPException(status.HTTP_409_CONFLICT, "Önceki sorunuz hâlâ yanıtlanıyor, lütfen bekleyin.")
     _inflight[key] = time.monotonic()
     try:
-        await store.log_usage(user.id, "ask", len(question))
+        await store.log_usage(user.id, "ask", len(prompt))  # birim: modele giden istem karakteri
     except Exception:
         _inflight.pop(key, None)
         raise

@@ -207,6 +207,54 @@ class SupabaseStore:
         return r.json()
 
 
+    # ---- yönetim paneli (Faz 6). Yalnızca routers/admin.py çağırır ----
+    async def get_profile(self, user_id: str) -> dict | None:
+        r = await self._c().get("/profiles", params={
+            "select": "id,email,role,is_active,created_at", "id": f"eq.{user_id}", "limit": "1"})
+        self._check(r)
+        rows = r.json()
+        return rows[0] if rows else None
+
+    async def set_profile(self, user_id: str, values: dict) -> None:
+        r = await self._c().patch("/profiles", params={"id": f"eq.{user_id}"}, json=values)
+        self._check(r)
+
+    async def count_active_admins(self) -> int:
+        r = await self._c().get("/profiles", params={
+            "select": "id", "role": "eq.admin", "is_active": "eq.true", "limit": "1"},
+            headers={"Prefer": "count=exact"})
+        self._check(r)
+        total = r.headers.get("content-range", "*/0").split("/")[-1]
+        return int(total) if total.isdigit() else 0
+
+    async def _rpc(self, fn: str, args: dict):
+        r = await self._c().post(f"/rpc/{fn}", json=args)
+        self._check(r)
+        return r.json()
+
+    async def admin_overview(self) -> dict:
+        return await self._rpc("admin_overview", {})
+
+    async def admin_users(self, q: str, limit: int, offset: int) -> list[dict]:
+        return await self._rpc("admin_user_list", {"p_q": q, "p_limit": limit, "p_offset": offset})
+
+    async def usage_daily(self, start: datetime, end: datetime) -> list[dict]:
+        return await self._rpc("admin_usage_daily", {"p_from": start.isoformat(), "p_to": end.isoformat()})
+
+    async def usage_by_user(self, start: datetime, end: datetime, limit: int) -> list[dict]:
+        return await self._rpc("admin_usage_by_user", {"p_from": start.isoformat(), "p_to": end.isoformat(), "p_limit": limit})
+
+    async def add_audit(self, row: dict) -> None:
+        r = await self._c().post("/admin_audit", json=row)
+        self._check(r)
+
+    async def list_audit(self, limit: int) -> list[dict]:
+        r = await self._c().get("/admin_audit", params={
+            "select": "id,admin_email,action,target_email,detail,created_at", "order": "created_at.desc", "limit": str(limit)})
+        self._check(r)
+        return r.json()
+
+
 _store: SupabaseStore | None = None
 
 

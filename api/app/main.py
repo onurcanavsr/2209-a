@@ -7,8 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from . import audio_cache
+from .active_guard import ACTIVE_CACHE, ActiveGuard
+from .auth import decode_token
 from .config import get_settings
-from .routers import audio, documents, me, qa, quiz, summaries
+from .routers import admin, audio, documents, me, qa, quiz, summaries
 from .store import StoreError, get_store
 
 log = logging.getLogger(__name__)
@@ -27,7 +29,17 @@ async def lifespan(app: FastAPI):
     await get_store().close()
 
 
-app = FastAPI(title="Akademik Asistan API", version="0.3.0", lifespan=lifespan)
+app = FastAPI(title="Akademik Asistan API", version="0.4.0", lifespan=lifespan)
+
+async def _is_active(user_id: str) -> bool | None:
+    p = await get_store().get_profile(user_id)
+    return None if p is None else bool(p.get("is_active", True))
+
+
+# Devre dışı hesapları mevcut jetonlarıyla bile durdurur. CORS'tan ÖNCE eklenir ki CORS en dışta kalsın
+# (403 yanıtı da CORS başlıklarını alsın). Yalnızca yönetici anahtarı yapılandırılmışken (üretimde) çalışır.
+app.add_middleware(ActiveGuard, decode=decode_token, lookup=_is_active, cache=ACTIVE_CACHE,
+                   enabled=lambda: bool(get_settings().supabase_service_role_key))
 
 app.add_middleware(
     CORSMiddleware,
@@ -50,6 +62,7 @@ app.include_router(summaries.router)
 app.include_router(audio.router)
 app.include_router(qa.router)
 app.include_router(quiz.router)
+app.include_router(admin.router)
 
 
 @app.get("/health", include_in_schema=False)  # tek kamusal uç nokta (izleme için)

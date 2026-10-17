@@ -59,3 +59,9 @@ def require_admin(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
     if user.role != "admin":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Bu işlem için yetkiniz yok")
     return user
+
+
+def decode_token(token: str) -> dict:
+    """Jetonu doğrular ve talepleri döndürür (geçersizse jwt.PyJWTError). Ara katman (active_guard) kullanır."""
+    return _decode(token, get_settings())
+
