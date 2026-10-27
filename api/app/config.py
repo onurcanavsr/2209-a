@@ -34,6 +34,17 @@ class Settings(BaseSettings):
     max_text_chars: int = 400_000
     max_uncompressed_mb: int = 300
     max_concurrent_extractions: int = 2
+    # ---- Sesli komut (STT) ----
+    stt_provider: str = "openai"
+    openai_api_key: str = ""
+    stt_model: str = "gpt-transcribe"
+    stt_language: str = "tr"
+    stt_hints: bool = True                # komut sözcüklerini tanıyıcıya ipucu olarak ver
+    stt_timeout_s: float = 20.0
+    stt_max_bytes: int = 400_000          # tek komut kaydı için üst sınır (yaklaşık 20-40 sn ses)
+    daily_stt_requests: int = 300         # kullanıcı başına günlük komut sayısı (maliyet koruması)
+    cost_stt_per_min: float = 0.0045      # USD / ses dakikası (gpt-transcribe); yönetim paneli TAHMİNİ
+    cost_stt_avg_seconds: float = 3.0     # bir komutun ortalama süresi (tahmin için)
     # Yönetim paneli maliyet TAHMİNİ (USD / milyon token). Varsayılanlar, Claude Platform fiyat sayfasına göre
     # Sonnet 5.5 ($2/$10) ve Haiku 4.5 ($1/$5) içindir; modeli değiştirirseniz bunları da güncelleyin.
     cost_llm_main_in_per_mtok: float = 2.0

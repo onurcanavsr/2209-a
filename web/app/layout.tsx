@@ -1,6 +1,7 @@
 import "./globals.css";
 import Link from "next/link";
 import Araclar from "./components/Araclar";
+import SesDugmesi from "./components/SesDugmesi";
 import { createClient } from "@/lib/supabase/server";
 import { SITE_ADI } from "@/lib/site";
 
@@ -31,6 +32,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </nav>
           )}
           <div className="tools">
+            {user && process.env.NEXT_PUBLIC_SESLI_KOMUT === "true" && <SesDugmesi admin={admin} />}
             <Araclar />
             {user && (
               <form action="/auth/cikis" method="post">

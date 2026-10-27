@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { apiFetch, hataMesaji } from "@/lib/api";
 import { hizala, kelimeBul, oranHesapla, takipHazirla, type Takip } from "@/lib/takip";
+import { useMikrofonAcilinca, useSesKomutlari } from "@/lib/ses/useSesKomutlari";
 
 type Props = {
   docId: string;
@@ -14,6 +15,8 @@ type Props = {
   onAktif?: (i: number) => void;  // okunan kelimenin ekrandaki sırası; vurgu bitince -1
 };
 const HIZLAR = [0.75, 1, 1.25, 1.5, 1.75, 2];
+// Sayfada iki oynatıcı olabilir (özet, metin): sesli komut en son kullanılana gider
+let sonAktifOynatici: string | null = null;
 
 // Bölüm bölüm (cümle gruplarıyla) çalar: ilk bölüm hazır olur olmaz başlar, sıradaki önceden hazırlanır.
 export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indirilebilir = true, gorunen, onAktif }: Props) {
@@ -49,6 +52,7 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
   const konusulanSoz = useRef<Promise<void> | null>(null);
   gosterRef.current = goster;
   onAktifRef.current = onAktif;
+  const benId = useId();
 
   const qs = () => {
     const p = new URLSearchParams({ source });
@@ -171,6 +175,7 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
   }
 
   async function toggle() {
+    sonAktifOynatici = benId;
     const a = getAudio();
     if (playing) { a.pause(); setPlaying(false); setStatus("Duraklatıldı."); return; }
     setError("");
@@ -270,6 +275,39 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
     eslemeHazirla();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gorunen]);
+
+  // ---- Sesli komutlar ----
+  useEffect(() => () => { if (sonAktifOynatici === benId) sonAktifOynatici = null; }, [benId]);
+  const benimMi = () => sonAktifOynatici === null || sonAktifOynatici === benId;
+  useMikrofonAcilinca(() => {          // mikrofon açılırken kendi sesimizi duymayalım
+    if (playing) { audio.current?.pause(); setPlaying(false); }
+  });
+  useSesKomutlari({
+    "oku.baslat": () => {
+      if (!benimMi()) return false;
+      if (!playing && !busy) void toggle();
+      return true;
+    },
+    "oku.durdur": () => {
+      if (!playing) return false;      // başka oynatıcı çalıyor olabilir: sıradakine bırak
+      void toggle();
+      return true;
+    },
+    "oku.ileri": () => { if (!started || !benimMi()) return false; atla(10); return true; },
+    "oku.geri": () => { if (!started || !benimMi()) return false; atla(-10); return true; },
+    "oku.sonraki": () => { if (!started || !benimMi() || idx + 1 >= total) return false; bolum(1); return true; },
+    "oku.onceki": () => { if (!started || !benimMi() || idx === 0) return false; bolum(-1); return true; },
+    "oku.hizli": () => {
+      const i = HIZLAR.indexOf(rate);
+      if (i < 0 || i >= HIZLAR.length - 1 || !benimMi()) return false;
+      hizDegistir(HIZLAR[i + 1]); setStatus(`Hız ${HIZLAR[i + 1]} kat.`); return true;
+    },
+    "oku.yavas": () => {
+      const i = HIZLAR.indexOf(rate);
+      if (i <= 0 || !benimMi()) return false;
+      hizDegistir(HIZLAR[i - 1]); setStatus(`Hız ${HIZLAR[i - 1]} kat.`); return true;
+    },
+  }, source === "summary" ? 2 : 1);
 
   const dk = Math.max(1, Math.round(sure / 60));
   return (

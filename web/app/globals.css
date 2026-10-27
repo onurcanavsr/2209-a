@@ -102,3 +102,13 @@ details summary{cursor:pointer;font-weight:700;margin:8px 0}
 .rozet.err{background:var(--errbg);color:var(--err)}
 .bars{display:flex;align-items:flex-end;gap:3px;height:120px;padding:8px;background:var(--surf);border:1px solid var(--bd);border-radius:12px}
 .bars .bar{flex:1;min-width:2px;background:var(--pri);border-radius:3px 3px 0 0}
+
+/* Sesli komut */
+.ses-btn.dinliyor{background:var(--pri);color:var(--pri-t);border-color:transparent;animation:ses-nabiz 1.2s ease-in-out infinite}
+@keyframes ses-nabiz{0%,100%{box-shadow:0 0 0 0 rgba(43,107,112,.5)}50%{box-shadow:0 0 0 8px rgba(43,107,112,0)}}
+@media (prefers-reduced-motion:reduce){.ses-btn.dinliyor{animation:none}}
+.ses-duyulan{color:var(--mut);font-size:.85rem;max-width:14ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ses-dlg{background:var(--surf);color:var(--txt);border:1px solid var(--bd);border-radius:14px;padding:22px 26px;max-width:min(560px,92vw)}
+.ses-dlg::backdrop{background:rgba(0,0,0,.5)}
+.ses-dlg ul{padding-left:20px;columns:2;column-gap:28px}
+@media (max-width:560px){.ses-dlg ul{columns:1}}

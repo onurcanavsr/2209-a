@@ -2,7 +2,7 @@
 kaydedilmediği için tutarlar kabaca hesaplanır ve panelde "tahmini" diye gösterilir. Gerçek fatura için
 Anthropic Console ve (kullanılıyorsa) Azure panosuna bakın.
 
-Birimler: summarize/quiz = belge karakteri, ask = modele giden istem karakteri, tts = seslendirilen karakter."""
+Birimler: summarize/quiz = belge karakteri, ask = modele giden istem karakteri, tts = seslendirilen karakter, stt = sesli komut sayısı."""
 from math import ceil
 from typing import Any
 
@@ -17,7 +17,7 @@ IN_MAP_NOTES_CHARS = 3_000      # her bölüm notunun final çağrısına giren 
 OUT_ASK_TOKENS = 400
 OUT_QUIZ_TOKENS = 2_000
 
-KNOWN_ACTIONS = ("summarize", "ask", "quiz", "tts", "upload")
+KNOWN_ACTIONS = ("summarize", "ask", "quiz", "tts", "stt", "upload")
 
 
 def _tokens(chars: float, s: Any) -> float:
@@ -47,4 +47,6 @@ def estimate_cost(action: str, units: int, s: Any) -> float:
     if action == "tts":
         # edge-tts ücretsizdir; yalnızca Azure'da karakter başına ücret var
         return units / 1_000_000 * float(s.cost_tts_per_mchar) if s.tts_provider == "azure" else 0.0
+    if action == "stt":   # birim = komut sayısı; süre kaydedilmediğinden ortalama süreyle tahmin edilir
+        return units * float(s.cost_stt_avg_seconds) / 60 * float(s.cost_stt_per_min)
     return 0.0

@@ -4,6 +4,7 @@ import { apiFetch, hataMesaji } from "@/lib/api";
 import { Ozet } from "@/lib/markdown";
 import { ozetAgaci, ozetKelimeleri } from "@/lib/ozetAgaci";
 import { vurguIsaretle } from "@/lib/vurgu";
+import { useSesKomutlari } from "@/lib/ses/useSesKomutlari";
 import Oynatici from "./Oynatici";
 
 type Seviye = "short" | "medium" | "detailed";
@@ -46,7 +47,7 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
   const metin = calisiyor ? akan : (akan || kayitli[seviye] || "");
   const gosterilen = calisiyor ? akan : (kayitli[seviye] ?? "");
 
-  async function olustur(yeniden: boolean) {
+  async function olustur(yeniden: boolean, lvl: Seviye = seviye) {
     setHata(""); setAkan(""); setCalisiyor(true);
     setDurum("Özet hazırlanıyor…");
     let tam = "";
@@ -54,7 +55,7 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
       const r = await apiFetch(`/api/documents/${docId}/summarize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ level: seviye, regenerate: yeniden }),
+        body: JSON.stringify({ level: lvl, regenerate: yeniden }),
       });
       if (!r.ok || !r.body) { setHata(await hataMesaji(r, "Özet hazırlanamadı.")); setDurum(""); setCalisiyor(false); return; }
       const reader = r.body.getReader();
@@ -77,7 +78,7 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
         }
       }
       if (bitti && tam) {
-        setKayitli((k) => ({ ...k, [seviye]: tam }));
+        setKayitli((k) => ({ ...k, [lvl]: tam }));
         setAkan("");
         setDurum("Özet hazır.");
         setTimeout(() => baslik.current?.focus(), 50);
@@ -90,6 +91,19 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
     }
     setCalisiyor(false);
   }
+
+  // ---- Sesli komutlar ----
+  function seviyeyleOzetle(s: Seviye) {
+    if (calisiyor) return;
+    setSeviye(s); setAkan(""); setHata(""); setDurum("");
+    void olustur(false, s);
+  }
+  useSesKomutlari({
+    "ozet.olustur": () => { if (!calisiyor) void olustur(false); return true; },
+    "ozet.kisa": () => { seviyeyleOzetle("short"); return true; },
+    "ozet.orta": () => { seviyeyleOzetle("medium"); return true; },
+    "ozet.ayrintili": () => { seviyeyleOzetle("detailed"); return true; },
+  });
 
   const varMi = Boolean(kayitli[seviye]);
   return (

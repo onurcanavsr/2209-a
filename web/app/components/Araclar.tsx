@@ -25,6 +25,16 @@ export default function Araclar() {
     } catch {}
   }
 
+  // Sesli komutlar (SesDugmesi) temayı ve yazı boyutunu buradan değiştirir; böylece seçim kutusu da güncel kalır
+  useEffect(() => {
+    function f(e: Event) {
+      const d = (e as CustomEvent<{ tema?: string; boyutFark?: number }>).detail || {};
+      uygula(d.tema ?? tema, Math.min(26, Math.max(14, boyut + (d.boyutFark ?? 0))));
+    }
+    window.addEventListener("araclar:ayarla", f);
+    return () => window.removeEventListener("araclar:ayarla", f);
+  });
+
   return (
     <>
       <label htmlFor="tema" className="sr">Tema</label>

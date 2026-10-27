@@ -13,3 +13,4 @@ pillow>=10.0
 pytesseract>=0.3.10
 pytest>=8.0
 edge-tts>=6.1
+openai>=1.60

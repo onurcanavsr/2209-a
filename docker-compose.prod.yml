@@ -27,6 +27,7 @@ services:
         NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
         NEXT_PUBLIC_SITE_URL: https://${DOMAIN}
         NEXT_PUBLIC_REGISTRATION_OPEN: ${REGISTRATION_OPEN:-false}
+        NEXT_PUBLIC_SESLI_KOMUT: ${SESLI_KOMUT:-false}
     restart: unless-stopped
     networks: [edge]
 
