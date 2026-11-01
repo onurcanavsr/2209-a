@@ -1,9 +1,10 @@
 """Sesli komut: tarayıcıda kaydedilen kısa ses, sunucuda metne çevrilir (tüm tarayıcılarda aynı yol).
 Ses diske YAZILMAZ, günlüğe metin yazılmaz; yalnızca kullanım sayacı tutulur."""
+import json
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from ..auth import CurrentUser, get_current_user
 from ..config import get_settings
@@ -14,6 +15,25 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/voice", tags=["sesli-komut"])
 
 MIN_BYTES = 800  # bundan küçük kayıt gerçek konuşma içermez
+MAX_HINTS, MAX_HINT_LEN = 15, 60
+
+
+def parse_hints(raw: str) -> list[str]:
+    """İstemcinin gönderdiği özel adlar (belge başlıkları). Güvenilmez girdi: türü, sayıyı, uzunluğu ve
+    yazdırılamaz karakterleri denetler; geçersizse sessizce yok sayar (komut yine çalışır)."""
+    try:
+        v = json.loads(raw) if raw else []
+    except ValueError:
+        return []
+    if not isinstance(v, list):
+        return []
+    out: list[str] = []
+    for x in v[:MAX_HINTS]:
+        if isinstance(x, str):
+            x = "".join(c for c in x if c.isprintable()).strip()[:MAX_HINT_LEN]
+            if len(x) >= 2 and x not in out:
+                out.append(x)
+    return out
 
 
 def stt_provider():
@@ -53,7 +73,7 @@ async def voice_status(user: CurrentUser = Depends(get_current_user), store=Depe
 
 
 @router.post("/transcribe")
-async def transcribe(audio: UploadFile = File(...), user: CurrentUser = Depends(get_current_user),
+async def transcribe(audio: UploadFile = File(...), hints: str = Form(""), user: CurrentUser = Depends(get_current_user),
                      store=Depends(get_store), provider=Depends(stt_provider)):
     s = get_settings()
     data = await audio.read(s.stt_max_bytes + 1)
@@ -69,7 +89,7 @@ async def transcribe(audio: UploadFile = File(...), user: CurrentUser = Depends(
                             "Günlük sesli komut hakkınız doldu. Düğme ve klavyeyle kullanmaya devam edebilirsiniz; hakkınız yarın yenilenir.")
     ext, mime = kind
     try:
-        text = await provider.transcribe(data, f"komut.{ext}", mime)
+        text = await provider.transcribe(data, f"komut.{ext}", mime, parse_hints(hints))
     except Exception as e:  # STTError veya ağ hatası: ayrıntı (anahtar parçası olabilir) kullanıcıya gitmez
         log.error("STT başarısız: %s", type(e).__name__)
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,

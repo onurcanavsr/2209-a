@@ -2,7 +2,7 @@
 kaydedilmediği için tutarlar kabaca hesaplanır ve panelde "tahmini" diye gösterilir. Gerçek fatura için
 Anthropic Console ve (kullanılıyorsa) Azure panosuna bakın.
 
-Birimler: summarize/quiz = belge karakteri, ask = modele giden istem karakteri, tts = seslendirilen karakter, stt = sesli komut sayısı."""
+Birimler: summarize/quiz/cards = belge karakteri, ask = modele giden istem karakteri, tts = seslendirilen karakter, stt = sesli komut sayısı."""
 from math import ceil
 from typing import Any
 
@@ -16,8 +16,9 @@ OUT_MAP_TOKENS = 900            # uzun belgede her bölüm notu
 IN_MAP_NOTES_CHARS = 3_000      # her bölüm notunun final çağrısına giren boyutu
 OUT_ASK_TOKENS = 400
 OUT_QUIZ_TOKENS = 2_000
+OUT_CARDS_TOKENS = 1_500
 
-KNOWN_ACTIONS = ("summarize", "ask", "quiz", "tts", "stt", "upload")
+KNOWN_ACTIONS = ("summarize", "ask", "quiz", "cards", "tts", "stt", "upload")
 
 
 def _tokens(chars: float, s: Any) -> float:
@@ -42,6 +43,8 @@ def estimate_cost(action: str, units: int, s: Any) -> float:
         return map_cost + final
     if action == "quiz":
         return _usd(_tokens(min(units, QUIZ_SOURCE_MAX) + PROMPT_OVERHEAD_CHARS, s), OUT_QUIZ_TOKENS, *main)
+    if action == "cards":   # kart üretimi test üretimiyle aynı kaynak sınırını kullanır
+        return _usd(_tokens(min(units, QUIZ_SOURCE_MAX) + PROMPT_OVERHEAD_CHARS, s), OUT_CARDS_TOKENS, *main)
     if action == "ask":
         return _usd(_tokens(units + PROMPT_OVERHEAD_CHARS, s), OUT_ASK_TOKENS, *main)
     if action == "tts":

@@ -64,3 +64,8 @@ def test_sanity_monthly_scale():
     gunluk = 5 * estimate_cost("summarize", 20_000, cfg()) + 20 * estimate_cost("ask", 8_000, cfg()) + estimate_cost("quiz", 20_000, cfg())
     aylik = gunluk * 100 * 30
     assert 10 < aylik < 2_000, aylik
+
+
+def test_cards_cost_matches_quiz_shape():
+    assert estimate_cost("cards", 400_000, cfg()) == estimate_cost("cards", 40_000, cfg())
+    assert 0 < estimate_cost("cards", 10_000, cfg()) < estimate_cost("cards", 40_000, cfg())

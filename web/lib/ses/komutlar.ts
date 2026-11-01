@@ -15,7 +15,17 @@ export const KOMUTLAR: KomutTanimi[] = [
   { id: "tema.koyu", ad: "Koyu tema", ifadeler: ["koyu tema", "koyu mod", "karanlık mod", "karanlık tema"] },
   { id: "tema.acik", ad: "Açık tema", ifadeler: ["açık tema", "açık mod", "aydınlık mod", "aydınlık tema"] },
   { id: "tema.otomatik", ad: "Otomatik tema", ifadeler: ["otomatik tema", "varsayılan tema", "tema otomatik"] },
+  { id: "cikis", ad: "Çıkış yap", ifadeler: ["çıkış yap", "oturumu kapat", "çıkış", "hesaptan çık"] },
   { id: "yardim", ad: "Komutları listele", ifadeler: ["yardım", "ne diyebilirim", "komutlar", "komut listesi", "komutları söyle"] },
+  // ---- belge sayfasında: bölümlere geçiş (sol menüdeki bölümler) ----
+  { id: "bolum.soru", ad: "Belgeye soru sor bölümü", ifadeler: ["soru sorma bölümü", "soru cevap bölümü", "soru cevap", "belgeye soru sor bölümü"] },
+  { id: "bolum.ozet", ad: "Özet bölümü", ifadeler: ["özet bölümü", "özete git", "özet sayfası"] },
+  { id: "bolum.test", ad: "Pekiştirme testi bölümü", ifadeler: ["teste git", "test bölümü", "pekiştirme testi bölümü", "pekiştirme testine git"] },
+  { id: "bolum.dinle", ad: "Metni dinle bölümü", ifadeler: ["metni dinle", "metni dinle bölümü", "dinleme bölümü"] },
+  { id: "bolum.metin", ad: "Çıkarılan metin bölümü", ifadeler: ["çıkarılan metin", "metne git", "metin bölümü"] },
+  { id: "bolum.notlar", ad: "Notlarım bölümü", ifadeler: ["notlarım", "notlarıma git", "notlar"] },
+  { id: "bolum.kartlar", ad: "Öğrenme kartları bölümü", ifadeler: ["öğrenme kartları", "kartlarıma git", "kartlar"] },
+  { id: "bolum.imler", ad: "Yer imleri bölümü", ifadeler: ["yer imleri", "yer imlerime git", "yer imlerim"] },
   // ---- belge sayfasında: özet ----
   { id: "ozet.olustur", ad: "Özetle", ifadeler: ["özetle", "özet çıkar", "özet oluştur", "özeti oluştur", "belgeyi özetle"] },
   { id: "ozet.kisa", ad: "Kısa özet", ifadeler: ["kısa özet", "kısa özetle", "kısa özet çıkar"] },
@@ -30,6 +40,34 @@ export const KOMUTLAR: KomutTanimi[] = [
   { id: "oku.onceki", ad: "Önceki bölüm", ifadeler: ["önceki bölüm", "önceki", "bir önceki bölüm"] },
   { id: "oku.hizli", ad: "Daha hızlı oku", ifadeler: ["daha hızlı", "hızlı oku", "hızlandır", "hızı artır"] },
   { id: "oku.yavas", ad: "Daha yavaş oku", ifadeler: ["daha yavaş", "yavaş oku", "yavaşlat", "hızı azalt"] },
+  // ---- çalışma alanı ----
+  { id: "belge.listele", ad: "Belgeleri listele", ifadeler: ["belgeleri listele", "belgelerimi listele", "belgelerimi oku", "belgeleri oku", "hangi belgeler var", "belgelerimi say"] },
+  { id: "belge.yukle", ad: "Dosya yükle", ifadeler: ["belge yükle", "dosya yükle", "dosya seç", "yeni belge yükle", "belge ekle"] },
+  // ---- belge sayfası: belgeyi sil ----
+  { id: "belge.sil", ad: "Belgeyi sil", ifadeler: ["belgeyi sil", "bu belgeyi sil", "dosyayı sil"] },
+  // ---- belge sayfası: belgeye soru sor ----
+  { id: "soru.sor", ad: "Belgeye soru sor", ifadeler: ["soru sor", "bir soru sor", "belgeye soru sor", "soru soracağım", "soru sormak istiyorum"] },
+  { id: "cevap.oku", ad: "Son cevabı oku", ifadeler: ["cevabı oku", "son cevabı oku", "cevabı tekrar oku", "cevap"] },
+  { id: "qa.temizle", ad: "Soru geçmişini sil", ifadeler: ["soru geçmişini sil", "geçmişi temizle", "soru cevap geçmişini temizle"] },
+  // ---- belge sayfası: pekiştirme testi ----
+  { id: "test.olustur", ad: "Pekiştirme testi oluştur", ifadeler: ["pekiştirme testi", "pekiştirme testi oluştur", "pekiştirme testi başlat", "test oluştur", "yeni test", "yeni test oluştur", "testi başlat", "test başlat", "test hazırla", "quiz başlat"] },
+  { id: "test.kolay", ad: "Zorluk: kolay", ifadeler: ["kolay", "kolay test", "kolay zorluk", "zorluk kolay"] },
+  { id: "test.orta", ad: "Zorluk: orta", ifadeler: ["orta", "orta test", "orta zorluk", "zorluk orta"] },
+  { id: "test.zor", ad: "Zorluk: zor", ifadeler: ["zor", "zor test", "zorluk zor"] },
+  { id: "test.bes", ad: "5 soru", ifadeler: ["beş soru", "5 soru", "beş soruluk", "5 soruluk"] },
+  { id: "test.on", ad: "10 soru", ifadeler: ["on soru", "10 soru", "on soruluk", "10 soruluk"] },
+  { id: "sik.1", ad: "A şıkkını işaretle", ifadeler: ["a şıkkı", "a", "şık a", "a seçeneği", "birinci şık", "birinci", "birinci seçenek", "1"] },
+  { id: "sik.2", ad: "B şıkkını işaretle", ifadeler: ["b şıkkı", "be şıkkı", "b", "be", "şık b", "b seçeneği", "ikinci şık", "ikinci", "ikinci seçenek", "2"] },
+  { id: "sik.3", ad: "C şıkkını işaretle", ifadeler: ["c şıkkı", "ce şıkkı", "c", "ce", "şık c", "c seçeneği", "üçüncü şık", "üçüncü", "üçüncü seçenek", "3"] },
+  { id: "sik.4", ad: "D şıkkını işaretle", ifadeler: ["d şıkkı", "de şıkkı", "d", "de", "şık d", "d seçeneği", "dördüncü şık", "dördüncü", "dördüncü seçenek", "4"] },
+  { id: "test.sonraki", ad: "Sonraki soru", ifadeler: ["sonraki soru", "bir sonraki soru", "soruyu atla", "geç"] },
+  { id: "test.onceki", ad: "Önceki soru", ifadeler: ["önceki soru", "bir önceki soru"] },
+  { id: "test.oku", ad: "Soruyu ve şıkları oku", ifadeler: ["soruyu oku", "soruyu tekrar oku", "soruyu tekrarla", "şıkları oku", "soru ve şıkları oku"] },
+  { id: "test.bitir", ad: "Testi bitir", ifadeler: ["testi bitir", "testi tamamla", "sonucu göster", "bitir", "testi bitir ve sonucu göster"] },
+  { id: "test.sonuc", ad: "Sonucu oku", ifadeler: ["sonucu oku", "sonucum ne", "kaç doğru yaptım", "puanım"] },
+  { id: "test.yanlis", ad: "Yanlışları açıkla", ifadeler: ["yanlışları oku", "yanlışları açıkla", "yanlış cevapları oku", "açıklamaları oku"] },
+  { id: "test.tekrar", ad: "Testi tekrar çöz", ifadeler: ["testi tekrar çöz", "aynı testi tekrar çöz", "tekrar çöz"] },
+  { id: "test.sil", ad: "Testi sil", ifadeler: ["testi sil", "bu testi sil"] },
 ];
 
 /** Küçük harf (tr-TR: I→ı, İ→i), aksansız, noktalamasız, tek boşluklu. */
@@ -110,4 +148,58 @@ export function esles(metin: string, uygun: Iterable<string>): Sonuc {
     return { durum: "belirsiz", adaylar: [en.ad, ikinci.ad] };
   }
   return { durum: "ok", id: en.id, ad: en.ad, skor: en.skor };
+}
+
+
+// ---------------------------------------------------------------------------------------------
+// Parametreli ifadeler ve onay: sabit sözlüğe sığmayanlar
+
+const SAYI_KELIME: Record<string, number> = {
+  bir: 1, iki: 2, uc: 3, dort: 4, bes: 5, alti: 6, yedi: 7, sekiz: 8, dokuz: 9, on: 10,
+};
+const SIRA_KELIME: Record<string, number> = {
+  birinci: 1, ilk: 1, ikinci: 2, ucuncu: 3, dorduncu: 4, besinci: 5, altinci: 6, yedinci: 7, sekizinci: 8, dokuzuncu: 9, onuncu: 10,
+};
+
+/** "evet / hayır" yanıtı. Hem de hayır varsa (ör. "evet hayır") güvenli tarafta kalıp belirsiz sayar. */
+export function evetHayir(metin: string): "evet" | "hayir" | null {
+  const EVET = ["evet", "onayliyorum", "onayla", "tamam", "olur", "kabul", "dogru"];
+  const HAYIR = ["hayir", "vazgec", "vazgectim", "iptal", "olmaz", "istemiyorum"];
+  const tok = normalize(metin).split(" ").filter(Boolean);   // dolgu temizliği YOK: "tamam" burada anlamlı
+  const var_ = (liste: string[]) => tok.some((t) => liste.some((k) => benzerlik(t, k) >= 0.8));
+  const e = var_(EVET), h = var_(HAYIR);
+  if (e && h) return null;
+  return e ? "evet" : h ? "hayir" : null;
+}
+
+export type TestIstegi = { adet?: 5 | 10; zorluk?: "easy" | "medium" | "hard" };
+
+/** "10 soruluk zor test oluştur" gibi parametreli test isteği. Parametre yoksa null (sabit komut devreye girer). */
+export function testIstegi(metin: string): TestIstegi | null {
+  const tok = temizle(normalize(metin)).split(" ").filter(Boolean);
+  const testVar = tok.some((t) => /^(test|quiz|pekistirme)/.test(t));
+  const fiil = tok.some((t) => /^(olustur|baslat|hazirla|yap|uret|ver|yeni|cikar)/.test(t));
+  const r: TestIstegi = {};
+  for (const t of tok) {
+    const n = /^\d+$/.test(t) ? Number(t) : SAYI_KELIME[t.replace(/(luk|lik|luk)$/, "")];
+    if (n === 5 || n === 10) r.adet = n;
+    const z = t.replace(/(dir|lu)$/, "");
+    if (z === "kolay") r.zorluk = "easy";
+    else if (z === "orta") r.zorluk = "medium";
+    else if (z === "zor") r.zorluk = "hard";
+  }
+  if (!r.adet && !r.zorluk) return null;
+  return testVar || fiil ? r : null;
+}
+
+/** "3. soruya git", "üçüncü soru" → 1 tabanlı soru numarası. */
+export function soruNoBul(metin: string): number | null {
+  const tok = temizle(normalize(metin)).split(" ").filter(Boolean);
+  if (!tok.some((t) => /^soru/.test(t))) return null;
+  for (const t of tok) {
+    if (/^\d+$/.test(t)) { const n = Number(t); if (n >= 1 && n <= 30) return n; }
+    if (SIRA_KELIME[t]) return SIRA_KELIME[t];
+    if (SAYI_KELIME[t]) return SAYI_KELIME[t];
+  }
+  return null;
 }

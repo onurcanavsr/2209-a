@@ -107,8 +107,9 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
 
   const varMi = Boolean(kayitli[seviye]);
   return (
-    <section aria-labelledby="ozet-baslik" className="card" style={{ margin: "20px 0" }}>
-      <h2 id="ozet-baslik" ref={baslik} tabIndex={-1} style={{ marginTop: 0 }}>Özet</h2>
+    <section aria-labelledby="ozet-baslik" className="panel">
+      <h2 id="ozet-baslik" ref={baslik} tabIndex={-1} className="panel-h">Özet</h2>
+      <p className="panel-alt">Belgenin kısa, orta veya ayrıntılı özetini oluşturun; özeti sesli dinleyebilirsiniz.</p>
 
       <div role="group" aria-label="Özet seviyesi" className="seg">
         {SEVIYELER.map((s) => (

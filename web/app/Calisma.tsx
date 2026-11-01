@@ -1,12 +1,17 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { apiFetch, hataMesaji, DURUM, type Belge } from "@/lib/api";
+import { belgeAra, belgeFiil, baslikOku } from "@/lib/ses/belgeAra";
+import { dikteIste, onayIste, sesDuyur } from "@/lib/ses/kayit";
+import { useSesIpuclari, useSesKomutlari, useSesMetin } from "@/lib/ses/useSesKomutlari";
 
 const MAX_MB = 10;
 const UZANTILAR = ["pdf", "docx", "pptx"];
 
 export default function Calisma() {
+  const router = useRouter();
   const [docs, setDocs] = useState<Belge[] | null>(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
@@ -64,12 +69,55 @@ export default function Calisma() {
     if (input.current) input.current.value = "";
   }
 
-  async function sil(d: Belge) {
-    if (!window.confirm(`“${d.title}” silinsin mi? Bu işlem geri alınamaz.`)) return;
+  async function sil(d: Belge, onayli = false) {
+    if (!onayli && !window.confirm(`“${d.title}” silinsin mi? Bu işlem geri alınamaz.`)) return;
     const r = await apiFetch(`/api/documents/${d.id}`, { method: "DELETE" });
     if (r.ok) { setStatus(`“${d.title}” silindi.`); delete prev.current[d.id]; await load(); }
     else setError(await hataMesaji(r, "Belge silinemedi."));
   }
+
+  // ---- Sesli komutlar ----
+  function belgeAc(d: Belge) {
+    sesDuyur(`“${baslikOku(d.title)}” açılıyor.`);
+    router.push(`/belge/${d.id}`);
+  }
+  function belgeSilSesli(d: Belge) {
+    onayIste(`“${baslikOku(d.title)}” silinsin mi? Evet ya da hayır deyin.`, () => sil(d, true));
+  }
+
+  useSesIpuclari(() => (docs ?? []).slice(0, 15).map((d) => baslikOku(d.title)));   // dosya adlarını tanıyıcıya ipucu ver
+  useSesKomutlari({
+    "belge.listele": () => {
+      if (docs === null) sesDuyur("Belgeler yükleniyor, birazdan tekrar deneyin.");
+      else if (docs.length === 0) sesDuyur("Henüz belge yüklemediniz.");
+      else {
+        const ilk = docs.slice(0, 10).map((d, i) => `${i + 1}. ${baslikOku(d.title)}, ${DURUM[d.status]}`).join(". ");
+        sesDuyur(`${docs.length} belgeniz var. ${ilk}.${docs.length > 10 ? ` Ve ${docs.length - 10} belge daha.` : ""} Açmak için adını ya da sırasını söyleyin.`);
+      }
+    },
+    "belge.yukle": () => {
+      if (busy) return false;
+      input.current?.focus();
+      sesDuyur("Dosya seçme düğmesine odaklandım. Dosya penceresini açmak için Boşluk ya da Enter tuşuna basın.");
+    },
+  });
+  useSesMetin((metin) => {
+    if (!docs || docs.length === 0) return false;
+    const s = belgeAra(metin, docs);
+    if (s.durum === "yok") return false;
+    const eylem = belgeFiil(metin) === "sil" ? belgeSilSesli : belgeAc;
+    if (s.durum === "ok") { eylem(s.belge); return true; }
+    // benzer adlı birden çok belge: tahmin yürütme, sor
+    dikteIste({
+      istem: `Birden çok belge eşleşti: ${s.adaylar.map((b) => baslikOku(b.title)).join(", ")}. Hangisi?`,
+      uygula: (m) => {
+        const r = belgeAra(m, s.adaylar);
+        if (r.durum === "ok") eylem(r.belge);
+        else sesDuyur("Hangi belge olduğu anlaşılamadı, işlem yapılmadı.");
+      },
+    });
+    return true;
+  });
 
   return (
     <div>

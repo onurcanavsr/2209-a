@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, hataMesaji } from "@/lib/api";
-import { KOMUTLAR, esles } from "@/lib/ses/komutlar";
-import { calistir, mikrofonuBildir, uygunIdler } from "@/lib/ses/kayit";
+import { KOMUTLAR, benzerlik, esles, normalize } from "@/lib/ses/komutlar";
+import { calistir, dikteAl, duyuruAyarla, duyuruSayaci, ipuclari, metinDene, mikrofonuBildir, uygunIdler } from "@/lib/ses/kayit";
 import { useSesKomutlari } from "@/lib/ses/useSesKomutlari";
 import { desteklenir, kayitYap, MikrofonHatasi, uzanti } from "@/lib/ses/kaydedici";
 import { bip, bipHazirla } from "@/lib/ses/bip";
@@ -57,6 +57,8 @@ export default function SesDugmesi({ admin }: { admin: boolean }) {
   function duyur(metin: string) {
     setDuyuru((d) => ({ n: d.n + 1, metin }));
   }
+  // Bileşenler (test, soru-cevap, çalışma alanı) sonuçlarını aynı canlı bölge üzerinden duyurur
+  useEffect(() => duyuruAyarla(duyur), []);
 
   function yardimAc() {
     const var_ = uygunIdler();
@@ -70,6 +72,7 @@ export default function SesDugmesi({ admin }: { admin: boolean }) {
     "git.hesap": () => { router.push("/hesap"); },
     ...(admin ? { "git.yonetim": () => { router.push("/admin"); } } : {}),
     "geri.sayfa": () => { router.back(); },
+    "cikis": () => { document.querySelector<HTMLFormElement>('form[action="/auth/cikis"]')?.requestSubmit(); },
     "yazi.buyut": () => { ayarla({ boyutFark: 2 }); },
     "yazi.kucult": () => { ayarla({ boyutFark: -2 }); },
     "tema.koyu": () => { ayarla({ tema: "dark" }); },
@@ -80,16 +83,45 @@ export default function SesDugmesi({ admin }: { admin: boolean }) {
 
   async function isle(metin: string) {
     const s = esles(metin, uygunIdler());
-    if (s.durum === "ok") {
-      const tamam = await calistir(s.id);
-      duyur(tamam ? `Anlaşıldı: ${s.ad}.` : `${s.ad} şu an kullanılamıyor.`);
-    } else if (s.durum === "belirsiz") {
-      duyur(`Emin olamadım. ${s.adaylar.join(" mı, ")} mı demek istediniz? Lütfen tekrar söyleyin.`);
-    } else if (s.durum === "yok") {
-      duyur(`“${metin}” anlaşılamadı. Komutlar için “yardım” deyin.`);
-    } else {
-      duyur("Ses algılanmadı. Tekrar deneyin.");
+    const calis = async (id: string, ad: string) => {
+      const once = duyuruSayaci();
+      const tamam = await calistir(id);
+      // Bileşen kendi sonucunu duyurduysa ("B şıkkı işaretlendi. Soru 3…") genel onay mesajı eklenmez
+      if (!tamam) duyur(`${ad} şu an kullanılamıyor.`);
+      else if (duyuruSayaci() === once) duyur(`Anlaşıldı: ${ad}.`);
+    };
+    // 1) birebir sabit komut  2) serbest cümle (belge adı, "3. soruya git" …)  3) yaklaşık sabit komut
+    if (s.durum === "ok" && s.skor >= 0.999) return calis(s.id, s.ad);
+    if (await metinDene(metin)) return;
+    if (s.durum === "ok") return calis(s.id, s.ad);
+    if (s.durum === "belirsiz") duyur(`Emin olamadım. ${s.adaylar.join(" mı, ")} mı demek istediniz? Lütfen tekrar söyleyin.`);
+    else if (s.durum === "yok") duyur(`“${metin}” anlaşılamadı. Komutlar için “yardım” deyin.`);
+    else duyur("Ses algılanmadı. Tekrar deneyin.");
+  }
+
+  /** Bir kayıt al, sunucuda metne çevir. Hata/boşlukta kullanıcıya bildirip null döner. */
+  async function kaydetVeCoz(ac: AbortController): Promise<string | null> {
+    await bip(880, 110);   // "dinliyorum" işareti; kayıt bundan SONRA başlar, bip kayda karışmaz
+    if (ac.signal.aborted) { duyur("Dinleme iptal edildi."); return null; }
+    setDurum("dinliyor");  // dinlerken canlı bölge güncellenmez: ekran okuyucu mikrofona konuşmasın
+    const k = await kayitYap({ signal: ac.signal });
+    if (k.neden === "iptal") { duyur("Dinleme iptal edildi."); return null; }
+    await bip(520, 110);   // "bitti" işareti
+    if (!k.blob) { duyur("Ses algılanmadı. Tekrar deneyin."); return null; }
+    setDurum("isleniyor");
+    const fd = new FormData();
+    fd.append("audio", k.blob, `komut.${uzanti(k.blob.type)}`);
+    fd.append("hints", JSON.stringify(ipuclari()));   // belge başlıkları gibi özel adlar: tanımayı iyileştirir
+    const r = await apiFetch("/api/voice/transcribe", { method: "POST", body: fd });
+    if (!r.ok) {
+      if (r.status === 429) setKalan(0);
+      duyur(await hataMesaji(r, "Ses anlaşılamadı."));
+      return null;
     }
+    const { text }: { text: string } = await r.json();
+    setKalan((n) => (n === null ? n : Math.max(n - 1, 0)));
+    setDuyulan(text);
+    return text;
   }
 
   async function dinle() {
@@ -101,28 +133,27 @@ export default function SesDugmesi({ admin }: { admin: boolean }) {
     const ac = new AbortController();
     iptal.current = ac;
     try {
-      await bip(880, 110);   // "dinliyorum" işareti; kayıt bundan SONRA başlar, bip kayda karışmaz
-      setDurum("dinliyor");  // dinlerken canlı bölge güncellenmez: ekran okuyucu mikrofona konuşmasın
-      const k = await kayitYap({ signal: ac.signal });
-      if (k.neden === "iptal") { duyur("Dinleme iptal edildi."); return; }
-      await bip(520, 110);   // "bitti" işareti
-      if (!k.blob) { duyur("Ses algılanmadı. Tekrar deneyin."); return; }
-      setDurum("isleniyor");
-      const fd = new FormData();
-      fd.append("audio", k.blob, `komut.${uzanti(k.blob.type)}`);
-      const r = await apiFetch("/api/voice/transcribe", { method: "POST", body: fd });
-      if (!r.ok) {
-        if (r.status === 429) setKalan(0);
-        duyur(await hataMesaji(r, "Ses anlaşılamadı."));
-        return;
+      const metin = await kaydetVeCoz(ac);
+      if (metin === null) return;
+      await isle(metin);
+
+      // Takip konuşmaları (soru metni, evet/hayır, "hangisi?"): düğmeye yeniden basmadan mikrofon kendiliğinden açılır
+      for (let tur = 0; tur < 3 && !ac.signal.aborted; tur++) {
+        const d = dikteAl();
+        if (!d) break;
+        duyur(d.istem);
+        // İstem ekran okuyucuyla okunuyorsa bitmesini bekle (mikrofon onu duymasın): süre metin uzunluğuna göre
+        await new Promise((r) => setTimeout(r, Math.min(6000, 1200 + d.istem.length * 65)));
+        const yanit = await kaydetVeCoz(ac);
+        if (yanit === null) break;
+        // Mikrofon istemin kendisini yakaladıysa yanıt sayma
+        if (benzerlik(normalize(yanit), normalize(d.istem)) > 0.6) { duyur("Ses algılanmadı. Tekrar deneyin."); break; }
+        await d.uygula(yanit);
       }
-      const { text }: { text: string } = await r.json();
-      setKalan((n) => (n === null ? n : Math.max(n - 1, 0)));
-      setDuyulan(text);
-      await isle(text);
     } catch (e) {
       duyur(e instanceof MikrofonHatasi ? e.message : "Sesli komut çalışmadı. Lütfen tekrar deneyin.");
     } finally {
+      dikteAl();             // yarım kalmış takip isteği sonraki komuta sızmasın
       mesgul.current = false;
       setDurum("bosta");
     }
@@ -150,6 +181,8 @@ export default function SesDugmesi({ admin }: { admin: boolean }) {
         <ul>
           {yardim.map((k) => <li key={k.id}><strong>“{k.soyle}”</strong> — {k.ad}</li>)}
         </ul>
+        <p className="hint">Çalışma alanında bir belgeyi açmak için adını söylemeniz yeterli (ör. “staj raporu”); “ikinci belge” gibi sıra numarası da olur.
+          Silme gibi geri alınamaz işlemlerde sizden “evet” demeniz istenir.</p>
         {kalan !== null && <p className="hint">Bugün kalan sesli komut hakkınız: {kalan}</p>}
         <p className="hint">Ses sunucumuzda saklanmaz; komutun anlaşılması için bir yapay zekâ konuşma tanıma servisine iletilir.
           Ayrıntı: <Link href="/aydinlatma">Aydınlatma Metni</Link>.</p>

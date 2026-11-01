@@ -1,7 +1,7 @@
 import "./globals.css";
 import Link from "next/link";
 import Araclar from "./components/Araclar";
-import SesDugmesi from "./components/SesDugmesi";
+import Kabuk from "./components/Kabuk";
 import { createClient } from "@/lib/supabase/server";
 import { SITE_ADI } from "@/lib/site";
 
@@ -22,29 +22,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <a className="skip" href="#icerik">Ana içeriğe geç</a>
-        <header className="top">
-          <Link href="/" className="brand"><span className="logo" aria-hidden="true">{SITE_ADI[0]}</span>{SITE_ADI}</Link>
-          {user && (
-            <nav aria-label="Ana menü">
-              <Link href="/">Çalışma Alanı</Link>
-              {admin && <Link href="/admin">Yönetim</Link>}
-              <Link href="/hesap">Hesabım</Link>
-            </nav>
-          )}
-          <div className="tools">
-            {user && process.env.NEXT_PUBLIC_SESLI_KOMUT === "true" && <SesDugmesi admin={admin} />}
-            <Araclar />
-            {user && (
-              <form action="/auth/cikis" method="post">
-                <button type="submit">Çıkış</button>
-              </form>
-            )}
-          </div>
-        </header>
-        <main id="icerik">{children}</main>
-        <footer>
-          <Link href="/aydinlatma">Aydınlatma Metni</Link> · <Link href="/kullanim-sartlari">Kullanım Şartları</Link>
-        </footer>
+        {user ? (
+          <Kabuk admin={admin} eposta={user.email ?? ""}>{children}</Kabuk>
+        ) : (
+          <>
+            <header className="ust ust-sade">
+              <Link href="/" className="brand"><span className="logo" aria-hidden="true">{SITE_ADI[0]}</span>{SITE_ADI}</Link>
+              <div className="tools"><Araclar /></div>
+            </header>
+            <main id="icerik" className="sade">{children}</main>
+            <footer>
+              <Link href="/aydinlatma">Aydınlatma Metni</Link> · <Link href="/kullanim-sartlari">Kullanım Şartları</Link>
+            </footer>
+          </>
+        )}
       </body>
     </html>
   );

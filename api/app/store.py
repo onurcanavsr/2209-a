@@ -11,6 +11,13 @@ log = logging.getLogger(__name__)
 
 LIST_COLS = "id,title,kind,status,size_bytes,page_count,char_count,used_ocr,truncated,note,error,created_at"
 
+# Çalışma araçları tabloları: (istemciye giden sütunlar, sıralama). Yalnızca bu tablolara erişilir.
+STUDY_TABLES = {
+    "notes": ("id,content,created_at,updated_at", "created_at.desc"),
+    "bookmarks": ("id,label,word_index,snippet,created_at", "word_index.asc"),
+    "flashcards": ("id,front,back,source,created_at", "created_at.asc"),
+}
+
 
 class DuplicateError(Exception):
     pass
@@ -205,6 +212,50 @@ class SupabaseStore:
             "order": "created_at.desc", "limit": "50"})
         self._check(r)
         return r.json()
+
+
+    # ---- çalışma araçları (Faz 7): notlar, yer imleri, öğrenme kartları. Her sorgu user_id ile sınırlıdır ----
+    async def study_list(self, table: str, doc_id: str, user_id: str) -> list[dict]:
+        cols, order = STUDY_TABLES[table]
+        r = await self._c().get(f"/{table}", params={
+            "select": cols, "document_id": f"eq.{doc_id}", "user_id": f"eq.{user_id}", "order": order, "limit": "500"})
+        self._check(r)
+        return r.json()
+
+    async def study_count(self, table: str, doc_id: str, user_id: str) -> int:
+        STUDY_TABLES[table]
+        r = await self._c().get(f"/{table}", params={
+            "select": "id", "document_id": f"eq.{doc_id}", "user_id": f"eq.{user_id}", "limit": "1"},
+            headers={"Prefer": "count=exact"})
+        self._check(r)
+        total = r.headers.get("content-range", "*/0").split("/")[-1]
+        return int(total) if total.isdigit() else 0
+
+    async def study_add(self, table: str, rows: list[dict]) -> list[dict]:
+        STUDY_TABLES[table]
+        r = await self._c().post(f"/{table}", json=rows, headers={"Prefer": "return=representation"})
+        self._check(r)
+        return r.json()
+
+    async def study_update(self, table: str, item_id: str, user_id: str, values: dict) -> dict | None:
+        STUDY_TABLES[table]
+        r = await self._c().patch(f"/{table}", params={"id": f"eq.{item_id}", "user_id": f"eq.{user_id}"},
+                                  json=values, headers={"Prefer": "return=representation"})
+        self._check(r)
+        rows = r.json()
+        return rows[0] if rows else None
+
+    async def study_delete(self, table: str, item_id: str, user_id: str) -> bool:
+        STUDY_TABLES[table]
+        r = await self._c().delete(f"/{table}", params={"id": f"eq.{item_id}", "user_id": f"eq.{user_id}"},
+                                   headers={"Prefer": "return=representation"})
+        self._check(r)
+        return len(r.json()) > 0
+
+    async def study_delete_all(self, table: str, doc_id: str, user_id: str) -> None:
+        STUDY_TABLES[table]
+        r = await self._c().delete(f"/{table}", params={"document_id": f"eq.{doc_id}", "user_id": f"eq.{user_id}"})
+        self._check(r)
 
 
     # ---- yönetim paneli (Faz 6). Yalnızca routers/admin.py çağırır ----

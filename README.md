@@ -76,3 +76,10 @@ Yapay zekâ destekli, erişilebilir akademik içerik platformu (TÜBİTAK 2209-A
 - **Limitler salt okunur gösterilir** (`GET /api/admin/limits`); değiştirmek için ortam değişkeni güncellenip API yeniden başlatılır. `system_settings` tablosu hâlâ kullanılmıyor.
 - Testler: `test_admin.py` (uç noktalar), `test_costs.py`, `test_active_guard.py` (son ikisi FastAPI gerektirmez).
 
+
+## Faz 7: yeni arayüz, notlar, öğrenme kartları ve yer imleri
+- **Kurulum:** Supabase SQL Editor'de `0007_calisma_araclari.sql` çalıştırılır (0001-0006'dan sonra). Yeni ortam değişkeni: `DAILY_CARD_LIMIT` (günlük yapay zekâ ile kart üretimi, varsayılan 10).
+- **Arayüz:** Açık/koyu/otomatik tema ve A−/A+ yazı boyutu üst çubukta durur. Giriş yapınca sol menüde *Ana sayfa* ile açık belgenin bölümleri (Belgeye Soru Sor, Özet, Pekiştirme Testi, Metni Dinle, Çıkarılan Metin, Notlarım, Öğrenme Kartları, Yer İmleri) görünür; bölüm adresi `/belge/<id>?b=<bölüm>` biçimindedir. Yönetici hesabında menünün altında *Yönetim* grubu (Genel bakış, Kullanıcılar, Kullanım ve maliyet) çıkar. Belge dışındaki sayfalarda bölümler en son açılan belgeye gider.
+- **Notlar, yer imleri, kartlar:** Belgeye ve kullanıcıya özeldir (`/api/documents/{id}/notes|bookmarks|flashcards`, RLS açık). Belge başına en çok 200 not, 100 yer imi, 200 kart. Yer imi, *Çıkarılan Metin* bölümünde bir kelimeye tıklayarak (ya da kelime sırası yazarak) eklenir. Kartlar elle eklenir veya belgeden üretilir; üretim `usage_logs`'a `cards` olarak yazılır ve yönetim panelindeki maliyet tahminine girer.
+- **Sesli komutlar:** Bölüm geçişleri ("özete git", "teste git", "notlarım", "öğrenme kartları", "yer imleri", "çıkarılan metin", "metni dinle", "soru cevap bölümü") ve gelişmiş sesli akışlar (soruyu dikte etme, evet/hayır onayı, test şıkkı seçme) birleşik çalışır; "pekiştirme testi" ve "soru sor" başka bölümdeyken de ilgili bölüme geçip işi başlatır. Ayrıntı: `docs/SESLI_KOMUT.md`.
+- Yönetim panelindeki yatay menü kaldırıldı (`AdminMenu.tsx` silindi); bağlantılar sol menüdedir.

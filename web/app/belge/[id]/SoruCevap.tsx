@@ -2,9 +2,15 @@
 import { useEffect, useRef, useState } from "react";
 import { apiFetch, hataMesaji } from "@/lib/api";
 import { Ozet } from "@/lib/markdown";
+import { dikteIste, onayIste, sesDuyur } from "@/lib/ses/kayit";
+import { istekAl } from "@/lib/ses/bolumGecis";
+import { useSesKomutlari } from "@/lib/ses/useSesKomutlari";
 
 type Kaynak = { position: number; snippet: string };
 type Kayit = { id?: string; question: string; answer: string; sources: Kaynak[] };
+
+/** Ekran okuyucu için biçim işaretlerini (**, #, |) temizler. */
+const duzMetin = (s: string) => s.replace(/[*_#`>|]/g, " ").replace(/\s+/g, " ").trim();
 
 export default function SoruCevap({ docId }: { docId: string }) {
   const [gecmis, setGecmis] = useState<Kayit[]>([]);
@@ -22,12 +28,20 @@ export default function SoruCevap({ docId }: { docId: string }) {
         const r = await apiFetch(`/api/documents/${docId}/qa`);
         if (r.ok) setGecmis(await r.json());
       } catch {}
+      // Başka bölümdeyken "soru sor" denip soru söylendiyse bu bölüme geçilmiştir: geçmiş yüklendikten sonra sor
+      const i = istekAl(docId, "soru");
+      if (i) { setSoru(i.metin); await gonder(i.metin, true); }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docId]);
 
   async function sor(e: React.FormEvent) {
     e.preventDefault();
-    const metin = soru.trim();
+    await gonder(soru.trim());
+  }
+
+  /** `sesli`: soru sesle sorulduysa cevap da (ekran okuyucu canlı bölgesiyle) sesli duyurulur. */
+  async function gonder(metin: string, sesli = false) {
     if (metin.length < 3 || calisiyor) return;
     setHata(""); setAkan(""); setBekleyenSoru(metin); setCalisiyor(true);
     setDurum("Cevap hazırlanıyor…");
@@ -65,6 +79,7 @@ export default function SoruCevap({ docId }: { docId: string }) {
         setGecmis((g) => [...g, { question: metin, answer: tam.trim(), sources: kaynaklar }]);
         setSoru(""); setAkan("");
         setDurum("Cevap hazır.");
+        if (sesli) sesDuyur(`Cevap hazır. ${duzMetin(tam)}`);
         setTimeout(() => sonCevap.current?.focus(), 50);
       } else if (!bitti && !tam) {
         setHata((h) => h || "Cevap alınamadı. Lütfen tekrar deneyin.");
@@ -75,16 +90,36 @@ export default function SoruCevap({ docId }: { docId: string }) {
     setBekleyenSoru(""); setCalisiyor(false);
   }
 
-  async function temizle() {
-    if (!window.confirm("Bu belgedeki soru-cevap geçmişi silinsin mi?")) return;
+  async function temizle(onayli = false) {
+    if (!onayli && !window.confirm("Bu belgedeki soru-cevap geçmişi silinsin mi?")) return;
     const r = await apiFetch(`/api/documents/${docId}/qa`, { method: "DELETE" });
     if (r.ok) { setGecmis([]); setDurum("Geçmiş silindi."); }
     else setHata(await hataMesaji(r, "Geçmiş silinemedi."));
   }
 
+  // ---- Sesli komutlar ----
+  useSesKomutlari({
+    "soru.sor": () => {
+      if (calisiyor) return false;
+      // Mikrofon kendiliğinden yeniden açılır; serbest cümle komut olarak yorumlanmaz, soru olarak gönderilir
+      dikteIste({ istem: "Sorunuzu söyleyin.", uygula: async (m) => { setSoru(m); await gonder(m, true); } });
+    },
+    ...(gecmis.length > 0 ? {
+      "cevap.oku": () => {
+        const k = gecmis[gecmis.length - 1];
+        sesDuyur(`Soru: ${k.question}. Cevap: ${duzMetin(k.answer)}`);
+      },
+      "qa.temizle": () => {
+        if (calisiyor) return false;
+        onayIste("Soru geçmişi silinsin mi? Evet ya da hayır deyin.", () => temizle(true));
+      },
+    } : {}),
+  });
+
   return (
-    <section aria-labelledby="qa-baslik" className="card" style={{ margin: "20px 0" }}>
-      <h2 id="qa-baslik" style={{ marginTop: 0 }}>Belgeye soru sor</h2>
+    <section aria-labelledby="qa-baslik" className="panel">
+      <h2 id="qa-baslik" className="panel-h">Belgeye Soru Sor</h2>
+      <p className="panel-alt">Belge içeriğiyle ilgili merak ettiğiniz soruları sorun. Cevaplar yalnızca bu belgeye dayanır.</p>
       <form onSubmit={sor}>
         <label htmlFor="qa-soru" style={{ marginTop: 0 }}>Sorunuz</label>
         <input id="qa-soru" type="text" value={soru} maxLength={500} disabled={calisiyor}
@@ -96,7 +131,7 @@ export default function SoruCevap({ docId }: { docId: string }) {
             {calisiyor ? "Cevaplanıyor…" : "Sor"}
           </button>
           {gecmis.length > 0 && !calisiyor && (
-            <button type="button" className="btn sec" onClick={temizle}>Geçmişi temizle</button>
+            <button type="button" className="btn sec" onClick={() => temizle()}>Geçmişi temizle</button>
           )}
         </div>
       </form>

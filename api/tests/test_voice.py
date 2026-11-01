@@ -27,11 +27,13 @@ class FakeSTT:
 
     def __init__(self):
         self.calls: list[tuple[str, str, int]] = []
+        self.hints: list[list[str] | None] = []
         self.text = "özetle"
         self.fail = False
 
-    async def transcribe(self, audio, filename, mime):
+    async def transcribe(self, audio, filename, mime, hints=None):
         self.calls.append((filename, mime, len(audio)))
+        self.hints.append(hints)
         if self.fail:
             raise STTError("gizli-anahtar-sk-123 hesap bakiyesi yetersiz")
         return self.text
@@ -136,6 +138,44 @@ def test_sniff_formats():
     assert vo.sniff(b"RIFF\x00\x00\x00\x00WAVEfmt ") == ("wav", "audio/wav")
     assert vo.sniff(b"ID3\x04" + b"\x00" * 20) == ("mp3", "audio/mpeg")
     assert vo.sniff(b"hello world, not audio") is None
+
+
+def test_hints_are_sanitized_and_forwarded(env):
+    _, stt = env
+    import json
+    ham = json.dumps(["Staj Raporu", "staj raporu", "x", "A" * 200, 5, "Fizik\x00Notları", {"a": 1}] + [f"belge {i}" for i in range(40)])
+    r = client.post("/api/voice/transcribe", files={"audio": ("k.webm", WEBM, "audio/webm")},
+                    data={"hints": ham}, headers=tok(ALICE))
+    assert r.status_code == 200
+    h = stt.hints[-1]
+    assert h[0] == "Staj Raporu" and h.count("Staj Raporu") == 1       # tekrar atılır
+    assert "x" not in h and 5 not in h                                  # çok kısa / yanlış tür atılır
+    assert "A" * 60 in h and "A" * 61 not in "".join(h)                 # uzunluk sınırı
+    assert "FizikNotları" in h                                          # denetim karakteri temizlenir
+    assert len(h) <= vo.MAX_HINTS
+
+
+def test_bad_hints_never_break_the_command(env):
+    _, stt = env
+    for bozuk in ["{not json", '"düz metin"', "123", ""]:
+        r = client.post("/api/voice/transcribe", files={"audio": ("k.webm", WEBM, "audio/webm")},
+                        data={"hints": bozuk}, headers=tok(ALICE))
+        assert r.status_code == 200
+    assert all(h == [] for h in stt.hints)
+
+
+def test_openai_includes_hints_in_keywords():
+    seen = {}
+
+    def handler(req: httpx.Request):
+        seen["body"] = req.content
+        return httpx.Response(200, json={"text": "x"})
+
+    run(make_provider(handler).transcribe(WEBM, "komut.webm", "audio/webm", ["Staj Raporu Final"]))
+    assert "Staj Raporu Final".encode() in seen["body"]
+    from app.stt.vocab import MAX_KEYWORDS, birlestir
+    assert birlestir(["Staj Raporu Final"])[0] == "Staj Raporu Final"      # belge adları öne alınır
+    assert len(birlestir([f"b{i}" for i in range(30)])) == MAX_KEYWORDS
 
 
 def test_cost_estimate_for_stt():

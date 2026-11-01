@@ -3,7 +3,7 @@ import logging
 import httpx
 
 from .base import STTError, STTProvider
-from .vocab import KEYWORDS, PROMPT
+from .vocab import birlestir, prompt_for
 
 log = logging.getLogger(__name__)
 
@@ -18,20 +18,21 @@ class OpenAISTT(STTProvider):
         self.model, self.language, self.hints = model, language, hints
         self.client = AsyncOpenAI(api_key=api_key, timeout=timeout, max_retries=1, http_client=http_client)
 
-    def _variants(self) -> list[dict]:
+    def _variants(self, hints: list[str] | None = None) -> list[dict]:
         """Sırayla denenir. Yeni modellerin ipucu alanlarını (keywords/languages) kabul etmemesi durumunda
         daha sade isteğe düşülür; böylece parametre uyumsuzluğu özelliği tümüyle bozmaz."""
         v: list[dict] = []
         if self.hints:
-            v.append({"prompt": PROMPT, "extra_body": {"keywords": KEYWORDS, "languages": [self.language]}})
-            v.append({"prompt": PROMPT, "language": self.language})
+            prompt = prompt_for(hints)
+            v.append({"prompt": prompt, "extra_body": {"keywords": birlestir(hints), "languages": [self.language]}})
+            v.append({"prompt": prompt, "language": self.language})
         v.append({"language": self.language})
         return v
 
-    async def transcribe(self, audio: bytes, filename: str, mime: str) -> str:
+    async def transcribe(self, audio: bytes, filename: str, mime: str, hints: list[str] | None = None) -> str:
         import openai
         last: Exception | None = None
-        for extra in self._variants():
+        for extra in self._variants(hints):
             try:
                 r = await self.client.audio.transcriptions.create(
                     model=self.model, file=(filename, audio, mime), **extra)

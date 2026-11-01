@@ -1,0 +1,2 @@
+Bu güncellemeyi uygularken şu dosyayı silin (yönetim menüsü artık sol menüde):
+web/app/admin/AdminMenu.tsx
