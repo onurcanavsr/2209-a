@@ -222,3 +222,14 @@ main.sade:has(> .ana){max-width:none;padding:0}
 .ana-cta p{margin:0;font-size:1.4rem;font-weight:700}
 .ana-alt{max-width:1200px;margin:0 auto;padding:0 24px 32px;display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between;color:var(--mut);font-size:.9rem}
 @media (max-width:860px){.ana-hero{grid-template-columns:1fr;gap:36px;padding-top:40px}.ana-pencere-ic{grid-template-columns:1fr}.ana-yan{display:none}.ana-nav{display:none}}
+
+/* Sesli komut her an erişilebilir: üst çubuk yapışkan (geniş ekran), dar ekranda düğme sabit yüzer */
+@media (min-width:56.01rem){
+  .kabuk .ust{position:sticky;top:0;z-index:20}
+  .kenar-ic{top:var(--ust-yuk,4.5rem);max-height:calc(100vh - var(--ust-yuk,4.5rem))}
+  html{scroll-padding-top:calc(var(--ust-yuk,4.5rem) + 8px)}
+}
+@media (max-width:56rem){
+  .kabuk .ses-btn{position:fixed;right:16px;bottom:16px;z-index:25;border-radius:999px;padding:12px 18px;box-shadow:var(--golge)}
+  .kabuk .ses-duyulan{position:fixed;right:16px;bottom:70px;z-index:25;max-width:60vw;background:var(--surf);border:1px solid var(--bd);border-radius:10px;padding:4px 10px}
+}

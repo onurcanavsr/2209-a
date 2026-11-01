@@ -13,6 +13,18 @@ export default function Kabuk({ admin, eposta, children }: { admin: boolean; epo
   const [acik, setAcik] = useState(false);
   const kapat = useCallback(() => setAcik(false), []);
   const menuDugme = useRef<HTMLButtonElement>(null);
+  const ustRef = useRef<HTMLElement>(null);
+
+  // Üst çubuk yapışkan olduğu için yüksekliğini CSS'e bildiririz (yan menü ve odak kaydırması bunu kullanır)
+  useEffect(() => {
+    const el = ustRef.current;
+    if (!el) return;
+    const yaz = () => document.documentElement.style.setProperty("--ust-yuk", el.offsetHeight + "px");
+    yaz();
+    const ro = new ResizeObserver(yaz);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!acik) return;
@@ -24,7 +36,7 @@ export default function Kabuk({ admin, eposta, children }: { admin: boolean; epo
   return (
     <BelgeBaglamSaglayici>
       <div className="kabuk">
-        <header className="ust">
+        <header ref={ustRef} className="ust">
           <button ref={menuDugme} type="button" className="menu-ac" aria-expanded={acik} aria-controls="kenar"
             onClick={() => setAcik((a) => !a)}>
             <span aria-hidden="true">☰</span> Menü
