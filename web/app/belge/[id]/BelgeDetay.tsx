@@ -9,6 +9,7 @@ import { useSesKomutlari, useSesMetin } from "@/lib/ses/useSesKomutlari";
 import { dikteIste, onayIste } from "@/lib/ses/kayit";
 import { testIstegi } from "@/lib/ses/komutlar";
 import { istekBirak } from "@/lib/ses/bolumGecis";
+import { kindAd, uzantisiz } from "@/lib/belgeTuru";
 import { useBelgeBilgi } from "../../components/BelgeBaglam";
 import Ozetleme from "./Ozetleme";
 import Oynatici from "./Oynatici";
@@ -127,7 +128,7 @@ export default function BelgeDetay({ id }: { id: string }) {
       </nav>
       <h1 className="belge-baslik">{doc.title}</h1>
       <p className="hint" style={{ marginTop: 0 }}>
-        {doc.kind.toUpperCase()}
+        {kindAd(doc.kind)}
         {doc.page_count ? ` · ${doc.page_count} ${doc.kind === "pptx" ? "slayt" : "sayfa"}` : ""}
         {doc.char_count ? ` · ${doc.char_count.toLocaleString("tr-TR")} karakter` : ""}
         {" · "}<span className={`badge ${doc.status}`}>{DURUM[doc.status]}</span>
@@ -235,7 +236,7 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
         <>
           <Oynatici key="metin" docId={id} source="text" etiket="Metni dinle"
             gorunen={kelimeler} onAktif={isaretle}
-            dosyaAdi={`${doc.title.replace(/\.[^.]+$/, "")} - metin.mp3`} indirilebilir={(doc.char_count ?? 0) <= 60000} />
+            dosyaAdi={`${uzantisiz(doc.title)} - metin.mp3`} indirilebilir={(doc.char_count ?? 0) <= 60000} />
           <p className="hint">Metnin tamamını dinlemek günlük sesli okuma kotanızdan düşer; özeti dinlemek çok daha kısadır.</p>
         </>
       )}

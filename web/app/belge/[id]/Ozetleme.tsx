@@ -5,6 +5,7 @@ import { Ozet } from "@/lib/markdown";
 import { ozetAgaci, ozetKelimeleri } from "@/lib/ozetAgaci";
 import { vurguIsaretle } from "@/lib/vurgu";
 import { useSesKomutlari } from "@/lib/ses/useSesKomutlari";
+import { uzantisiz } from "@/lib/belgeTuru";
 import Oynatici from "./Oynatici";
 
 type Seviye = "short" | "medium" | "detailed";
@@ -145,7 +146,7 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
       {!calisiyor && kayitli[seviye] && (
         <Oynatici key={`ozet-${seviye}-${kayitliMetin.length}`} docId={docId} source="summary" level={seviye} etiket="Özeti dinle"
           gorunen={gorunen} onAktif={isaretle}
-          dosyaAdi={`${belgeAdi.replace(/\.[^.]+$/, "")} - özet.mp3`} />
+          dosyaAdi={`${uzantisiz(belgeAdi)} - özet.mp3`} />
       )}
       <p className="hint">Özet yapay zekâ tarafından üretilir ve hata içerebilir; önemli konularda asıl metni kontrol edin.</p>
     </section>

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/client";
 export type Belge = {
   id: string;
   title: string;
-  kind: "pdf" | "docx" | "pptx";
+  kind: "pdf" | "docx" | "pptx" | "youtube";
   status: "processing" | "ready" | "failed";
   size_bytes?: number | null;
   page_count?: number | null;

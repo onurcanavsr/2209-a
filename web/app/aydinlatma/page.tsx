@@ -25,11 +25,14 @@ export default function Aydinlatma() {
         <li>Yapay zekâ işleme: Anthropic (ABD). Özet ve soru üretimi için belge metniniz bu sağlayıcıya iletilir.</li>
         <li>Sesli okuma: [seçilen TTS sağlayıcı]</li>
         <li>Sesli komut (konuşmayı metne çevirme): OpenAI [bölge ve veri saklama koşullarını sağlayıcının güncel belgelerinden doğrulayın]</li>
+        <li>YouTube transkripti: YouTube (Google) [video eklerseniz; bölge ve koşulları doğrulayın]</li>
         <li>E-posta gönderimi: [seçilen e-posta servisi]</li>
       </ul>
       <p>Yurt dışına aktarım, KVKK m.9 kapsamındaki şartlara uygun olarak yapılır. [Aktarım dayanağını (örn. açık rıza veya standart sözleşme) güncel mevzuata göre netleştirin.]</p>
       <h2>4.1. Sesli komut</h2>
       <p>Sesli komut özelliğini kullandığınızda mikrofon kaydınız yalnızca birkaç saniyelik komutu anlamak için sunucumuza ve konuşma tanıma hizmetine iletilir. Çalışma alanındaki belge adlarını doğru tanıyabilmek için, adı geçen belgelerinizin başlıkları (dosya adları) kayıtla birlikte tanıma hizmetine ipucu olarak iletilir. Kaydınız sunucumuzda diske yazılmaz ve komut metni günlüklere kaydedilmez; yalnızca günlük kullanım sayısı tutulur. Mikrofon izni tarayıcınızdan verilir ve istediğiniz zaman geri alınabilir. Özelliği kullanmak zorunda değilsiniz; tüm işlemler düğme ve klavyeyle de yapılabilir. [Açık rıza metnini ve saklama sürelerini hukukçunuzla netleştirin.]</p>
+      <h2>4.2. YouTube bağlantısı</h2>
+      <p>Bir YouTube bağlantısı eklediğinizde sunucumuz, videonun herkese açık altyazısını (transkript) YouTube&apos;dan alır ve metni belge olarak hesabınıza kaydeder. Video dosyası indirilmez ve saklanmaz. YouTube&apos;a altyazıyı almak için videonun kimliği ve sunucumuzun IP adresi iletilir; bağlantı adresiniz başka bir amaçla kullanılmaz. [YouTube Hizmet Şartları ve telif konularını hukukçunuzla netleştirin.]</p>
       <h2>5. Saklama süresi</h2>
       <p>Yüklediğiniz özgün dosyalar, metin çıkarıldıktan sonra saklanmaz. Metin, özet ve sınav verileri hesabınız açık olduğu sürece saklanır; hesabınızı sildiğinizde bu veriler silinir. Ses dosyaları sınırlı süre saklanır [süreyi yazın]. Güvenlik kayıtları [süreyi yazın] saklanır.</p>
       <h2>6. Haklarınız</h2>

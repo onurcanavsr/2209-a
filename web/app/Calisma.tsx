@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, hataMesaji, DURUM, type Belge } from "@/lib/api";
 import { belgeAra, belgeFiil, baslikOku } from "@/lib/ses/belgeAra";
+import { kindAd } from "@/lib/belgeTuru";
 import { dikteIste, onayIste, sesDuyur } from "@/lib/ses/kayit";
 import { useSesIpuclari, useSesKomutlari, useSesMetin } from "@/lib/ses/useSesKomutlari";
 
@@ -19,6 +20,8 @@ export default function Calisma() {
   const [drag, setDrag] = useState(false);
   const prev = useRef<Record<string, string>>({});
   const input = useRef<HTMLInputElement>(null);
+  const [yt, setYt] = useState("");
+  const [ytBusy, setYtBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -67,6 +70,28 @@ export default function Calisma() {
     }
     setBusy(false);
     if (input.current) input.current.value = "";
+  }
+
+  async function youtubeEkle(e: React.FormEvent) {
+    e.preventDefault();
+    const url = yt.trim();
+    if (!url || ytBusy) return;
+    setError(""); setStatus("YouTube bağlantısı alınıyor…"); setYtBusy(true);
+    try {
+      const r = await apiFetch("/api/documents/youtube", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }),
+      });
+      if (!r.ok) { setStatus(""); setError(await hataMesaji(r, "Video eklenemedi.")); }
+      else {
+        const j = await r.json();
+        setStatus(j.cached ? "Bu video daha önce eklenmişti, hazır belge kullanıldı." : "Video eklendi, transkript alınıyor…");
+        setYt("");
+        await load();
+      }
+    } catch {
+      setStatus(""); setError("Sunucuya ulaşılamadı. Lütfen tekrar deneyin.");
+    }
+    setYtBusy(false);
   }
 
   async function sil(d: Belge, onayli = false) {
@@ -122,7 +147,7 @@ export default function Calisma() {
   return (
     <div>
       <h1>Çalışma Alanı</h1>
-      <p className="sub">PDF, Word veya PowerPoint belgenizi yükleyin; metni çıkaralım.</p>
+      <p className="sub">PDF, Word veya PowerPoint belgenizi yükleyin ya da bir YouTube bağlantısı ekleyin; metni çıkaralım.</p>
 
       <section className="card" aria-labelledby="yukle-baslik">
         <h2 id="yukle-baslik" style={{ marginTop: 0 }}>Belge yükle</h2>
@@ -138,6 +163,18 @@ export default function Calisma() {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) gonder(f); }} />
           <p className="hint">Taranmış PDF&apos;ler OCR ile okunur ve hata içerebilir.</p>
         </div>
+        <form onSubmit={youtubeEkle} aria-labelledby="yt-baslik" style={{ marginTop: 20 }}>
+          <h3 id="yt-baslik" style={{ margin: "0 0 8px" }}>YouTube videosu ekle</h3>
+          <label htmlFor="yt-url">YouTube bağlantısı</label>
+          <div className="row">
+            <input id="yt-url" type="text" inputMode="url" autoComplete="off" placeholder="https://www.youtube.com/watch?v=…"
+              value={yt} onChange={(e) => setYt(e.target.value)} disabled={ytBusy} style={{ flex: "1 1 18rem" }} />
+            <button type="submit" className="btn" style={{ width: "auto", margin: 0 }} disabled={ytBusy || !yt.trim()}>
+              {ytBusy ? "Ekleniyor…" : "Transkripti al"}
+            </button>
+          </div>
+          <p className="hint">Videonun altyazısı (transkript) belge olarak kaydedilir; altyazısı olmayan videolar çalışmaz. Otomatik altyazılarda yazım hataları olabilir.</p>
+        </form>
         <div role="status" aria-live="polite">{status && <p className="msg ok">{status}</p>}</div>
         <div role="alert" aria-live="assertive">{error && <p className="msg err">{error}</p>}</div>
       </section>
@@ -153,7 +190,7 @@ export default function Calisma() {
                 <div>
                   <Link href={`/belge/${d.id}`} className="doctitle">{d.title}</Link>
                   <div className="hint">
-                    {d.kind.toUpperCase()}
+                    {kindAd(d.kind)}
                     {d.page_count ? ` · ${d.page_count} ${d.kind === "pptx" ? "slayt" : "sayfa"}` : ""}
                     {d.char_count ? ` · ${d.char_count.toLocaleString("tr-TR")} karakter` : ""}
                     {" · "}{new Date(d.created_at).toLocaleString("tr-TR")}

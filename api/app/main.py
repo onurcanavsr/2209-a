@@ -10,7 +10,7 @@ from . import audio_cache
 from .active_guard import ACTIVE_CACHE, ActiveGuard
 from .auth import decode_token
 from .config import get_settings
-from .routers import admin, audio, documents, me, qa, quiz, study, summaries, voice
+from .routers import admin, audio, documents, me, qa, quiz, study, summaries, voice, youtube
 from .store import StoreError, get_store
 
 log = logging.getLogger(__name__)
@@ -63,6 +63,7 @@ app.include_router(audio.router)
 app.include_router(qa.router)
 app.include_router(quiz.router)
 app.include_router(study.router)
+app.include_router(youtube.router)
 app.include_router(admin.router)
 app.include_router(voice.router)
 

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     daily_qa_limit: int = 60              # kullanıcı başına günlük soru sayısı
     daily_quiz_limit: int = 15            # kullanıcı başına günlük test üretimi
     daily_card_limit: int = 10            # kullanıcı başına günlük yapay zekâ ile kart üretimi
+    youtube_proxy_url: str = ""            # YouTube sunucu IP'sini engellerse: http://kullanici:parola@host:port (boşsa doğrudan)
     tts_provider: str = "edge"            # "edge" (ücretsiz, resmî olmayan) | "azure" (resmî)
     tts_voice: str = "tr-TR-EmelNeural"
     azure_speech_key: str = ""
