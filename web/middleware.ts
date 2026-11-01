@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Girişsiz erişime açık tek sayfalar
+// Girişsiz erişime açık sayfalar ("/" tanıtım sayfasıdır; girişli kullanıcıya Çalışma Alanı gösterilir)
 const PUBLIC = ["/giris", "/kayit", "/parola-sifirla", "/aydinlatma", "/kullanim-sartlari", "/auth/callback"];
 
 export async function middleware(req: NextRequest) {
@@ -24,7 +24,7 @@ export async function middleware(req: NextRequest) {
   // getUser() belirteci Supabase'e doğrulatır (getSession'a güvenilmez)
   const { data: { user } } = await supabase.auth.getUser();
   const path = req.nextUrl.pathname;
-  const isPublic = PUBLIC.some((p) => path === p || path.startsWith(p + "/"));
+  const isPublic = path === "/" || PUBLIC.some((p) => path === p || path.startsWith(p + "/"));
 
   if (!user && !isPublic) {
     const url = req.nextUrl.clone();

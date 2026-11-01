@@ -185,3 +185,40 @@ textarea{resize:vertical}
 /* Sesli test çözümü: şu anki soru */
 .aktif-soru{outline:2px solid var(--pri);outline-offset:4px;border-radius:8px}
 .kullanici-menu[hidden]{display:none}
+
+/* ===== Tanıtım (anasayfa) ===== */
+body:has(.ana) .ust-sade,body:has(.ana) > footer{display:none}
+main.sade:has(> .ana){max-width:none;padding:0}
+.ana-ust{display:flex;flex-wrap:wrap;align-items:center;gap:10px 28px;padding:14px max(24px,calc((100% - 1200px)/2));background:var(--surf);border-bottom:1px solid var(--bd)}
+.ana-nav{display:flex;gap:22px}.ana-nav a{color:var(--txt);text-decoration:none}.ana-nav a:hover{text-decoration:underline}
+.ana-btn{display:inline-block;font:inherit;font-weight:700;text-decoration:none;background:var(--pri);color:var(--pri-t);border:1px solid transparent;border-radius:10px;padding:12px 24px}
+.ana-btn.ikinci{background:var(--surf);color:var(--txt);border-color:var(--bd)}
+.ana-btn.acik{background:var(--surf);color:var(--txt)}
+.ana-hero{display:grid;grid-template-columns:5fr 6fr;gap:56px;align-items:center;max-width:1200px;margin:0 auto;padding:64px 24px 72px}
+.ana-hero h1{font-size:clamp(2rem,4.2vw,3.1rem);line-height:1.1;letter-spacing:-.02em;margin:18px 0 0}
+.ana-lead{font-size:1.15rem;color:var(--mut);margin:18px 0 28px}
+.ana-rozet{display:inline-block;margin:0;background:var(--surf2);color:var(--txt);font-weight:700;font-size:.9rem;padding:6px 14px;border-radius:99px}
+.ana-bicim{list-style:none;display:flex;gap:8px;flex-wrap:wrap;margin:26px 0 8px;padding:0}
+.ana-bicim li{background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:4px 12px;font-size:.88rem;font-weight:700}
+.ana-pencere{background:var(--surf);border:1px solid var(--bd);border-radius:16px;overflow:hidden;box-shadow:var(--golge)}
+.ana-pencere-ust{display:flex;gap:6px;padding:11px 16px;border-bottom:1px solid var(--bd);background:var(--surf2)}
+.ana-pencere-ust i{width:10px;height:10px;border-radius:50%;background:var(--bd)}
+.ana-pencere-ic{display:grid;grid-template-columns:10.5rem 1fr}
+.ana-yan{list-style:none;margin:0;padding:12px 8px;border-right:1px solid var(--bd);background:var(--surf2);font-size:.82rem;display:grid;gap:3px;align-content:start}
+.ana-yan li{padding:7px 10px;border-radius:8px;color:var(--mut)}.ana-yan li.on{background:var(--pri);color:var(--pri-t);font-weight:700}
+.ana-panel{padding:20px;display:grid;gap:10px;font-size:.88rem;align-content:start}.ana-panel strong{font-size:1.2rem}
+.ana-girdi{border:1.5px solid var(--bd);border-radius:10px;padding:10px 12px;color:var(--mut)}
+.ana-mini{justify-self:start;background:var(--pri);color:var(--pri-t);font-weight:700;border-radius:8px;padding:7px 20px}
+.ana-soru{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--bd);border-radius:10px;padding:9px 12px}.ana-soru em{font-style:normal;color:var(--mut)}
+.ana-bolum{padding:64px 24px}.ana-zemin{background:var(--surf);border-block:1px solid var(--bd)}
+.ana-kap{max-width:1200px;margin:0 auto}.ana-kap h2{font-size:clamp(1.6rem,3vw,2.2rem);margin:0 0 8px;letter-spacing:-.01em}
+.ana-izgara{list-style:none;padding:0;margin:28px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.ana-izgara h3{margin:14px 0 6px;font-size:1.05rem}.ana-izgara p{margin:0;color:var(--mut);font-size:.95rem}
+.ana-ikon{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:var(--surf2);color:var(--pri)}
+.ana-adimlar{list-style:none;counter-reset:a;padding:0;margin:30px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:36px}
+.ana-adimlar li{counter-increment:a}.ana-adimlar li::before{content:counter(a);display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--pri);color:var(--pri-t);font-weight:700}
+.ana-adimlar h3{margin:14px 0 6px}.ana-adimlar p{margin:0;color:var(--mut)}
+.ana-cta{margin-top:56px;background:var(--pri);color:var(--pri-t);border-radius:20px;padding:32px 40px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between}
+.ana-cta p{margin:0;font-size:1.4rem;font-weight:700}
+.ana-alt{max-width:1200px;margin:0 auto;padding:0 24px 32px;display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between;color:var(--mut);font-size:.9rem}
+@media (max-width:860px){.ana-hero{grid-template-columns:1fr;gap:36px;padding-top:40px}.ana-pencere-ic{grid-template-columns:1fr}.ana-yan{display:none}.ana-nav{display:none}}
