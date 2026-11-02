@@ -82,7 +82,7 @@ def _clean(text: str) -> str:
 def _need_text(value: str, ad: str) -> str:
     v = _clean(value)
     if not v:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"{ad} boş olamaz.")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"{ad} boş olamaz.")
     return v
 
 
