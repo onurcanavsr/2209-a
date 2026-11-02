@@ -450,6 +450,7 @@ export const EN: Record<string, string> = {
   "İşlem": "Operations",
   "Tahmini maliyet": "Estimated cost",
   "Özetleme": "Summarizing",
+  "Sesli okuma:": "Read aloud:",
   "Soru-cevap": "Q&A",
   "Test üretimi": "Quiz generation",
   "Belge yükleme": "Document upload",
