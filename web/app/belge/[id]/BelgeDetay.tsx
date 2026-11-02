@@ -156,7 +156,7 @@ export default function BelgeDetay({ id }: { id: string }) {
   );
 }
 
-// "Metni Dinle" ve "Çıkarılan Metin" bölümleri aynı metin kutusunu paylaşır:
+// "Sesli Okuma" ve "Çıkarılan Metin" bölümleri aynı metin kutusunu paylaşır:
 // dinlerken okunan kelime işaretlenir; metin bölümünde bir kelime seçilip yer imi eklenebilir.
 function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "dinle" | "metin"; hedef: number | null }) {
   const { lang, t } = useLang();
@@ -229,7 +229,7 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
   const baslikId = mod === "dinle" ? "dinle-baslik" : "metin-baslik";
   return (
     <section aria-labelledby={baslikId} className="panel">
-      <h2 id={baslikId} className="panel-h">{mod === "dinle" ? t("Metni Dinle") : t("Çıkarılan Metin")}</h2>
+      <h2 id={baslikId} className="panel-h">{mod === "dinle" ? t("Sesli Okuma") : t("Çıkarılan Metin")}</h2>
       <p className="panel-alt">
         {mod === "dinle"
           ? t("Belgenin metnini sesli dinleyin; okunan kelime aşağıdaki metinde işaretlenir.")
@@ -238,7 +238,7 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
 
       {mod === "dinle" && (
         <>
-          <Oynatici key={`metin-${lang}`} docId={id} source="text" etiket={t("Metni dinle")}
+          <Oynatici key={`metin-${lang}`} docId={id} source="text" etiket={t("Sesli okuma")}
             gorunen={kelimeler} onAktif={isaretle}
             dosyaAdi={`${uzantisiz(doc.title)} - ${t("metin")}.mp3`} indirilebilir={(doc.char_count ?? 0) <= 60000} />
           <p className="hint">{t("Metnin tamamını dinlemek günlük sesli okuma kotanızdan düşer; özeti dinlemek çok daha kısadır.")}</p>

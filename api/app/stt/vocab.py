@@ -12,7 +12,7 @@ KEYWORDS_TR = [
     "pekiştirme testi", "test oluştur", "testi bitir", "sonucu oku", "soru sor", "cevabı oku",
     "a şıkkı", "b şıkkı", "c şıkkı", "d şıkkı", "birinci şık", "ikinci şık", "üçüncü şık", "dördüncü şık",
     "sonraki soru", "önceki soru", "soruyu oku", "belgeleri listele", "evet", "hayır",
-    "notlarım", "öğrenme kartları", "yer imleri", "çıkarılan metin", "metni dinle", "özete git",
+    "notlarım", "öğrenme kartları", "yer imleri", "çıkarılan metin", "sesli okuma", "özete git",
 ]
 
 KEYWORDS = KEYWORDS_TR   # geriye dönük uyumluluk
@@ -27,7 +27,7 @@ KEYWORDS_EN = [
     "practice quiz", "create quiz", "finish quiz", "read result", "ask a question", "read answer",
     "option a", "option b", "option c", "option d", "first option", "second option", "third option", "fourth option",
     "next question", "previous question", "read question", "list documents", "yes", "no",
-    "my notes", "flashcards", "bookmarks", "extracted text", "listen to text", "go to summary",
+    "my notes", "flashcards", "bookmarks", "extracted text", "read aloud", "go to summary",
 ]
 KEYWORDS_BY_LANG = {"tr": KEYWORDS_TR, "en": KEYWORDS_EN}
 

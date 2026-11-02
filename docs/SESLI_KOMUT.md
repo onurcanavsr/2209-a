@@ -31,7 +31,7 @@ Düğmeye bas → bip → konuş. Sayfaya göre geçerli komutlar değişir; "ya
 - **Her yerde:** çalışma alanına git, hesabıma git, geri git, yazıyı büyüt/küçült, koyu/açık/otomatik tema, çıkış yap, yardım.
 - **Çalışma alanı:** *belge adını söyle* ("staj raporu", "fizik ders notlarını aç"), *"ikinci belge" / "son belge"*,
   "belgeleri listele", "dosya yükle" (düğmeye odaklanır), "… belgesini sil" (sesli onay ister).
-- **Belge sayfası, bölümlere geçiş (sol menü):** "özete git", "teste git" / "pekiştirme testi bölümü", "soru cevap bölümü", "metni dinle", "çıkarılan metin", "notlarım", "öğrenme kartları", "yer imleri".
+- **Belge sayfası, bölümlere geçiş (sol menü):** "özete git", "teste git" / "pekiştirme testi bölümü", "soru cevap bölümü", "sesli okuma", "çıkarılan metin", "notlarım", "öğrenme kartları", "yer imleri".
 - **Özet bölümü:** özetle / kısa-orta-ayrıntılı özet, oku / dur / devam et / ileri sar / geri sar / sonraki-önceki bölüm / daha hızlı-yavaş. Bu komutlar yalnızca ilgili bölüm açıkken geçerlidir; "yardım" o an geçerli olanları söyler.
 - **Soru sor** (başka bölümdeyken de çalışır; soruyu söyleyince Belgeye Soru Sor bölümüne geçip cevaplar): "soru sor" de → bip → sorunuzu söyleyin (mikrofon kendiliğinden yeniden açılır) → cevap sesli duyurulur; "cevabı oku".
 - **Pekiştirme testi** (başka bölümdeyken de çalışır; önce Pekiştirme Testi bölümüne geçer, testi orada başlatır): "pekiştirme testi" ya da "10 soruluk zor test oluştur" → soru ve şıklar okunur →
@@ -94,7 +94,7 @@ Belge adı söylemek (ör. “open internship report”, “delete the second do
 | Ask the Document section | “ask the document section”, “questions and answers”, “q and a”, “go to questions” |
 | Summary section | “summary section”, “go to summary”, “summary page”, “go to the summary” |
 | Practice Quiz section | “go to quiz”, “quiz section”, “practice quiz section”, “go to practice quiz” |
-| Listen to the Text section | “listen to the text”, “listen to text section”, “listen section”, “listening section” |
+| Read Aloud section | “read aloud section”, “go to read aloud”, “open read aloud” |
 | Extracted Text section | “extracted text”, “go to text”, “text section”, “go to the text” |
 | My Notes section | “my notes”, “go to my notes”, “notes” |
 | Flashcards section | “flashcards”, “go to flashcards”, “my cards”, “go to my flashcards” |

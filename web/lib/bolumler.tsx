@@ -3,10 +3,10 @@
 export type BolumId = "soru" | "ozet" | "test" | "dinle" | "metin" | "notlar" | "kartlar" | "imler";
 
 export const BOLUMLER: { id: BolumId; ad: string; ikon: string }[] = [
-  { id: "soru", ad: "Belgeye Soru Sor", ikon: "soru" },
   { id: "ozet", ad: "Özet", ikon: "ozet" },
+  { id: "soru", ad: "Belgeye Soru Sor", ikon: "soru" },
   { id: "test", ad: "Pekiştirme Testi", ikon: "test" },
-  { id: "dinle", ad: "Metni Dinle", ikon: "dinle" },
+  { id: "dinle", ad: "Sesli Okuma", ikon: "dinle" },
   { id: "metin", ad: "Çıkarılan Metin", ikon: "metin" },
   { id: "notlar", ad: "Notlarım", ikon: "notlar" },
   { id: "kartlar", ad: "Öğrenme Kartları", ikon: "kartlar" },

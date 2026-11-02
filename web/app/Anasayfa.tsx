@@ -17,7 +17,7 @@ const ACIKLAMA: Record<string, string> = {
 
 const ADIMLAR = [
   { b: "Yükle", a: "PDF, Word ya da PowerPoint dosyanı (en fazla 10 MB) yükle veya bir YouTube bağlantısı ekle." },
-  { b: "Çalış", a: "Soru sor, özet çıkar, metni dinle; notlarını ve yer imlerini kaydet." },
+  { b: "Çalış", a: "Soru sor, özet çıkar, sesli okuma; notlarını ve yer imlerini kaydet." },
   { b: "Pekiştir", a: "Test çöz ve öğrenme kartlarıyla tekrar yaparak öğrendiklerini kalıcı hale getir." },
 ];
 
@@ -61,7 +61,7 @@ export default async function Anasayfa() {
             <ul className="ana-yan">
               <li>{t("Ana sayfa")}</li>
               <li className="on">{t("Belgeye Soru Sor")}</li>
-              <li>{t("Özet")}</li><li>{t("Pekiştirme Testi")}</li><li>{t("Metni Dinle")}</li><li>{t("Notlarım")}</li><li>{t("Öğrenme Kartları")}</li><li>{t("Yer İmleri")}</li>
+              <li>{t("Özet")}</li><li>{t("Pekiştirme Testi")}</li><li>{t("Sesli Okuma")}</li><li>{t("Notlarım")}</li><li>{t("Öğrenme Kartları")}</li><li>{t("Yer İmleri")}</li>
             </ul>
             <div className="ana-panel">
               <strong>{t("Belgeye Soru Sor")}</strong>

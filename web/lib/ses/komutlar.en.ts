@@ -21,7 +21,7 @@ export const KOMUTLAR_EN: Record<string, KomutCeviri> = {
   "bolum.soru": { ad: "Ask the Document section", ifadeler: ["ask the document section", "questions and answers", "q and a", "go to questions", "questions section"] },
   "bolum.ozet": { ad: "Summary section", ifadeler: ["summary section", "go to summary", "summary page", "go to the summary"] },
   "bolum.test": { ad: "Practice Quiz section", ifadeler: ["go to quiz", "quiz section", "practice quiz section", "go to practice quiz", "go to the quiz"] },
-  "bolum.dinle": { ad: "Listen to the Text section", ifadeler: ["listen to the text", "listen to text section", "listen section", "listening section"] },
+  "bolum.dinle": { ad: "Read Aloud section", ifadeler: ["read aloud section", "go to read aloud", "open read aloud"] },
   "bolum.metin": { ad: "Extracted Text section", ifadeler: ["extracted text", "go to text", "text section", "go to the text"] },
   "bolum.notlar": { ad: "My Notes section", ifadeler: ["my notes", "go to my notes", "notes"] },
   "bolum.kartlar": { ad: "Flashcards section", ifadeler: ["flashcards", "go to flashcards", "my cards", "go to my flashcards"] },

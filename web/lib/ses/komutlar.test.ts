@@ -45,7 +45,7 @@ describe("esles: doğru komutu bulur", () => {
     ["öğrenme kartları", "bolum.kartlar"],
     ["yer imleri", "bolum.imler"],
     ["çıkarılan metin", "bolum.metin"],
-    ["metni dinle", "bolum.dinle"],
+    ["sesli okuma", "bolum.dinle"],
     ["özete git", "bolum.ozet"],
     // bölüm adıyla karışmaması gerekenler: bunlar test oluşturur / soru sorar
     ["pekiştirme testi", "test.olustur"],

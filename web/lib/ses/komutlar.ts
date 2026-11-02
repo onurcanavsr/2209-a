@@ -27,7 +27,7 @@ export const KOMUTLAR: KomutTanimi[] = [
   { id: "bolum.soru", ad: "Belgeye soru sor bölümü", ifadeler: ["soru sorma bölümü", "soru cevap bölümü", "soru cevap", "belgeye soru sor bölümü"] },
   { id: "bolum.ozet", ad: "Özet bölümü", ifadeler: ["özet bölümü", "özete git", "özet sayfası"] },
   { id: "bolum.test", ad: "Pekiştirme testi bölümü", ifadeler: ["teste git", "test bölümü", "pekiştirme testi bölümü", "pekiştirme testine git"] },
-  { id: "bolum.dinle", ad: "Metni dinle bölümü", ifadeler: ["metni dinle", "metni dinle bölümü", "dinleme bölümü"] },
+  { id: "bolum.dinle", ad: "Sesli okuma bölümü", ifadeler: ["sesli okuma", "sesli okuma bölümü"] },
   { id: "bolum.metin", ad: "Çıkarılan metin bölümü", ifadeler: ["çıkarılan metin", "metne git", "metin bölümü"] },
   { id: "bolum.notlar", ad: "Notlarım bölümü", ifadeler: ["notlarım", "notlarıma git", "notlar"] },
   { id: "bolum.kartlar", ad: "Öğrenme kartları bölümü", ifadeler: ["öğrenme kartları", "kartlarıma git", "kartlar"] },
