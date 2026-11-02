@@ -7,6 +7,7 @@ import { vurguIsaretle } from "@/lib/vurgu";
 import { useSesKomutlari } from "@/lib/ses/useSesKomutlari";
 import { uzantisiz } from "@/lib/belgeTuru";
 import Oynatici from "./Oynatici";
+import { useLang } from "@/lib/i18n/client";
 
 type Seviye = "short" | "medium" | "detailed";
 const SEVIYELER: { id: Seviye; ad: string; ipucu: string }[] = [
@@ -16,6 +17,7 @@ const SEVIYELER: { id: Seviye; ad: string; ipucu: string }[] = [
 ];
 
 export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; baslik: string }) {
+  const { lang, t } = useLang();
   const [seviye, setSeviye] = useState<Seviye>("medium");
   const [kayitli, setKayitli] = useState<Partial<Record<Seviye, string>>>({});
   const [akan, setAkan] = useState("");
@@ -34,23 +36,27 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
   }, []);
   useEffect(() => { onceki.current = -1; }, [kayitliMetin, calisiyor]);
 
+  // Özetler dile göre ayrı saklanır (aynı belgenin Türkçe ve İngilizce özeti ayrı); dil değişince kendi dilindekiler gelir
   useEffect(() => {
+    let canli = true;
+    setKayitli({}); setAkan(""); setHata(""); setDurum("");
     (async () => {
       try {
         const r = await apiFetch(`/api/documents/${docId}/summaries`);
         if (!r.ok) return;
         const list: { level: Seviye; content: string }[] = await r.json();
-        setKayitli(Object.fromEntries(list.map((s) => [s.level, s.content])));
+        if (canli) setKayitli(Object.fromEntries(list.map((s) => [s.level, s.content])));
       } catch {}
     })();
-  }, [docId]);
+    return () => { canli = false; };
+  }, [docId, lang]);
 
   const metin = calisiyor ? akan : (akan || kayitli[seviye] || "");
   const gosterilen = calisiyor ? akan : (kayitli[seviye] ?? "");
 
   async function olustur(yeniden: boolean, lvl: Seviye = seviye) {
     setHata(""); setAkan(""); setCalisiyor(true);
-    setDurum("Özet hazırlanıyor…");
+    setDurum(t("Özet hazırlanıyor…"));
     let tam = "";
     try {
       const r = await apiFetch(`/api/documents/${docId}/summarize`, {
@@ -58,7 +64,7 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ level: lvl, regenerate: yeniden }),
       });
-      if (!r.ok || !r.body) { setHata(await hataMesaji(r, "Özet hazırlanamadı.")); setDurum(""); setCalisiyor(false); return; }
+      if (!r.ok || !r.body) { setHata(await hataMesaji(r, t("Özet hazırlanamadı."))); setDurum(""); setCalisiyor(false); return; }
       const reader = r.body.getReader();
       const dec = new TextDecoder();
       let buf = "";
@@ -72,7 +78,7 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
         for (const b of bloklar) {
           if (!b.startsWith("data: ")) continue;
           const ev = JSON.parse(b.slice(6));
-          if (ev.type === "start" && ev.cached) setDurum("Daha önce hazırlanmış özet gösteriliyor.");
+          if (ev.type === "start" && ev.cached) setDurum(t("Daha önce hazırlanmış özet gösteriliyor."));
           if (ev.type === "delta") { tam += ev.text; setAkan(tam); }
           if (ev.type === "error") { setHata(ev.message); setDurum(""); }
           if (ev.type === "done") bitti = true;
@@ -81,13 +87,13 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
       if (bitti && tam) {
         setKayitli((k) => ({ ...k, [lvl]: tam }));
         setAkan("");
-        setDurum("Özet hazır.");
+        setDurum(t("Özet hazır."));
         setTimeout(() => baslik.current?.focus(), 50);
       } else if (!bitti && !tam) {
-        setHata((h) => h || "Özet alınamadı. Lütfen tekrar deneyin.");
+        setHata((h) => h || t("Özet alınamadı. Lütfen tekrar deneyin."));
       }
     } catch {
-      setHata("Sunucuya ulaşılamadı. Lütfen tekrar deneyin.");
+      setHata(t("Sunucuya ulaşılamadı. Lütfen tekrar deneyin."));
       setDurum("");
     }
     setCalisiyor(false);
@@ -109,14 +115,14 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
   const varMi = Boolean(kayitli[seviye]);
   return (
     <section aria-labelledby="ozet-baslik" className="panel">
-      <h2 id="ozet-baslik" ref={baslik} tabIndex={-1} className="panel-h">Özet</h2>
-      <p className="panel-alt">Belgenin kısa, orta veya ayrıntılı özetini oluşturun; özeti sesli dinleyebilirsiniz.</p>
+      <h2 id="ozet-baslik" ref={baslik} tabIndex={-1} className="panel-h">{t("Özet")}</h2>
+      <p className="panel-alt">{t("Belgenin kısa, orta veya ayrıntılı özetini oluşturun; özeti sesli dinleyebilirsiniz.")}</p>
 
-      <div role="group" aria-label="Özet seviyesi" className="seg">
+      <div role="group" aria-label={t("Özet seviyesi")} className="seg">
         {SEVIYELER.map((s) => (
           <button key={s.id} type="button" aria-pressed={seviye === s.id} disabled={calisiyor}
             onClick={() => { setSeviye(s.id); setAkan(""); setHata(""); setDurum(""); }}>
-            {s.ad} <span className="hint" style={{ margin: 0 }}>({s.ipucu})</span>
+            {t(s.ad)} <span className="hint" style={{ margin: 0 }}>({t(s.ipucu)})</span>
           </button>
         ))}
       </div>
@@ -124,12 +130,12 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
       <div className="row" style={{ marginTop: 14 }}>
         {!varMi && (
           <button type="button" className="btn" style={{ width: "auto", margin: 0 }} disabled={calisiyor} onClick={() => olustur(false)}>
-            {calisiyor ? "Hazırlanıyor…" : "Özetle"}
+            {calisiyor ? t("Hazırlanıyor…") : t("Özetle")}
           </button>
         )}
         {varMi && (
           <button type="button" className="btn sec" disabled={calisiyor} onClick={() => olustur(true)}>
-            {calisiyor ? "Hazırlanıyor…" : "Yeniden oluştur"}
+            {calisiyor ? t("Hazırlanıyor…") : t("Yeniden oluştur")}
           </button>
         )}
       </div>
@@ -139,16 +145,16 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
       <div role="alert" aria-live="assertive">{hata && <p className="msg err">{hata}</p>}</div>
 
       {(gosterilen || metin) && (
-        <div className="ozet" ref={ozetKap} aria-busy={calisiyor} aria-label={`${SEVIYELER.find((s) => s.id === seviye)?.ad} özet`} role="region">
+        <div className="ozet" ref={ozetKap} aria-busy={calisiyor} aria-label={t("{seviye} özet", { seviye: t(SEVIYELER.find((s) => s.id === seviye)?.ad ?? "") })} role="region">
           <Ozet text={calisiyor ? akan : (kayitli[seviye] ?? akan)} kelimeler={!calisiyor && Boolean(kayitliMetin)} />
         </div>
       )}
       {!calisiyor && kayitli[seviye] && (
-        <Oynatici key={`ozet-${seviye}-${kayitliMetin.length}`} docId={docId} source="summary" level={seviye} etiket="Özeti dinle"
+        <Oynatici key={`ozet-${lang}-${seviye}-${kayitliMetin.length}`} docId={docId} source="summary" level={seviye} etiket={t("Özeti dinle")}
           gorunen={gorunen} onAktif={isaretle}
-          dosyaAdi={`${uzantisiz(belgeAdi)} - özet.mp3`} />
+          dosyaAdi={`${uzantisiz(belgeAdi)} - ${t("özet")}.mp3`} />
       )}
-      <p className="hint">Özet yapay zekâ tarafından üretilir ve hata içerebilir; önemli konularda asıl metni kontrol edin.</p>
+      <p className="hint">{t("Özet yapay zekâ tarafından üretilir ve hata içerebilir; önemli konularda asıl metni kontrol edin.")}</p>
     </section>
   );
 }

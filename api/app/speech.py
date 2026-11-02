@@ -4,7 +4,8 @@ import re
 FIRST_SEGMENT_MAX = 500  # ilk bölüm kısa: oynatma hızlı başlasın
 _HEAD = re.compile(r"^#{1,6}\s+(.*)$")
 _BULLET = re.compile(r"^[-*•]\s+(.*)$")
-_SLIDE = re.compile(r"^\[Slayt (\d+)\]$")
+_SLIDE = re.compile(r"^\[(?:Slayt|Slide) (\d+)\]$")   # çıkarma kalıbı: [Slayt n]; [Slide n] de kabul edilir
+SLIDE_WORD = {"tr": "Slayt", "en": "Slide"}
 _SENT_SPLIT = re.compile(r"(?<=[.!?…])\s+")
 
 
@@ -17,8 +18,8 @@ def _punct(line: str) -> str:
     return line if line and line[-1] in ".!?…:;" else line + "."
 
 
-def prepare(text: str, source: str) -> list[str]:
-    """Okunacak 'birimleri' (başlık, madde, paragraf) döndürür."""
+def prepare(text: str, source: str, lang: str = "tr") -> list[str]:
+    """Okunacak 'birimleri' (başlık, madde, paragraf) döndürür. `lang`: '[Slayt 3]' gibi işaretlerin okunuşu."""
     units: list[str] = []
     para: list[str] = []
 
@@ -44,7 +45,7 @@ def prepare(text: str, source: str) -> list[str]:
                 units.append(_punct(t))
         elif (m := _SLIDE.match(line)):
             flush()
-            units.append(f"Slayt {m.group(1)}.")
+            units.append(f"{SLIDE_WORD.get(lang, SLIDE_WORD['tr'])} {m.group(1)}.")
         elif source == "summary" or " | " in line:  # özet satır satır; tablo satırı ayrı okunur
             flush()
             t = _inline(line.replace(" | ", ", "))

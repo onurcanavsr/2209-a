@@ -7,9 +7,12 @@ import SesDugmesi from "./SesDugmesi";
 import { BelgeBaglamSaglayici, useBelgeBilgi } from "./BelgeBaglam";
 import { BOLUMLER, YONETIM, Ikon, belgeIdYoldan } from "@/lib/bolumler";
 import { SITE_ADI } from "@/lib/site";
+import { useLang, useT } from "@/lib/i18n/client";
+import { LOCALE } from "@/lib/i18n/core";
 
 // Giriş yapmış kullanıcının çerçevesi: üst çubuk (belge etiketi, sesli komut, tema, yazı boyutu, hesap) + sol menü.
 export default function Kabuk({ admin, eposta, children }: { admin: boolean; eposta: string; children: ReactNode }) {
+  const t = useT();
   const [acik, setAcik] = useState(false);
   const kapat = useCallback(() => setAcik(false), []);
   const menuDugme = useRef<HTMLButtonElement>(null);
@@ -39,7 +42,7 @@ export default function Kabuk({ admin, eposta, children }: { admin: boolean; epo
         <header ref={ustRef} className="ust">
           <button ref={menuDugme} type="button" className="menu-ac" aria-expanded={acik} aria-controls="kenar"
             onClick={() => setAcik((a) => !a)}>
-            <span aria-hidden="true">☰</span> Menü
+            <span aria-hidden="true">☰</span> {t("Menü")}
           </button>
           <Link href="/" className="brand"><span className="logo" aria-hidden="true">{SITE_ADI[0]}</span>{SITE_ADI}</Link>
           <BelgeEtiketi />
@@ -50,7 +53,7 @@ export default function Kabuk({ admin, eposta, children }: { admin: boolean; epo
           </div>
         </header>
 
-        <aside id="kenar" className="kenar" data-acik={acik} aria-label="Yan menü">
+        <aside id="kenar" className="kenar" data-acik={acik} aria-label={t("Yan menü")}>
           <div className="kenar-ic"><Suspense fallback={null}><KenarMenu admin={admin} kapat={kapat} /></Suspense></div>
         </aside>
         {acik && <div className="kenar-arka" onClick={kapat} aria-hidden="true" />}
@@ -76,6 +79,7 @@ function BelgeEtiketi() {
 }
 
 function KenarMenu({ admin, kapat }: { admin: boolean; kapat: () => void }) {
+  const t = useT();
   const yol = usePathname() ?? "/";
   const sp = useSearchParams();
   const yoldanId = belgeIdYoldan(yol);
@@ -94,10 +98,10 @@ function KenarMenu({ admin, kapat }: { admin: boolean; kapat: () => void }) {
 
   return (
     <>
-      <nav aria-label="Ana menü" className="kenar-nav">
+      <nav aria-label={t("Ana menü")} className="kenar-nav">
         <ul>
           <li>
-            <Link href="/" className="nav-oge" aria-current={yol === "/" ? "page" : undefined}><Ikon ad="ana" />Ana sayfa</Link>
+            <Link href="/" className="nav-oge" aria-current={yol === "/" ? "page" : undefined}><Ikon ad="ana" />{t("Ana sayfa")}</Link>
           </li>
           {BOLUMLER.map((b) => {
             const etkin = bolum === b.id;
@@ -105,26 +109,26 @@ function KenarMenu({ admin, kapat }: { admin: boolean; kapat: () => void }) {
               <li key={b.id}>
                 {belgeId ? (
                   <Link href={`/belge/${belgeId}?b=${b.id}`} className="nav-oge" aria-current={etkin ? "page" : undefined}>
-                    <Ikon ad={b.ikon} />{b.ad}
+                    <Ikon ad={b.ikon} />{t(b.ad)}
                   </Link>
                 ) : (
-                  <Link href="/" className="nav-oge pasif"><Ikon ad={b.ikon} />{b.ad}<span className="sr-only"> (önce Ana sayfadan bir belge seçin)</span></Link>
+                  <Link href="/" className="nav-oge pasif"><Ikon ad={b.ikon} />{t(b.ad)}<span className="sr-only"> {t("(önce Ana sayfadan bir belge seçin)")}</span></Link>
                 )}
               </li>
             );
           })}
         </ul>
-        {!belgeId && <p className="hint kenar-not">Bölümleri kullanmak için Ana sayfadan bir belge açın.</p>}
+        {!belgeId && <p className="hint kenar-not">{t("Bölümleri kullanmak için Ana sayfadan bir belge açın.")}</p>}
 
         {admin && (
           <>
-            <h2 className="kenar-baslik" id="yonetim-baslik">Yönetim</h2>
+            <h2 className="kenar-baslik" id="yonetim-baslik">{t("Yönetim")}</h2>
             <ul aria-labelledby="yonetim-baslik">
               {YONETIM.map((y) => {
                 const etkin = y.href === "/admin" ? yol === "/admin" : yol.startsWith(y.href);
                 return (
                   <li key={y.href}>
-                    <Link href={y.href} className="nav-oge" aria-current={etkin ? "page" : undefined}><Ikon ad={y.ikon} />{y.ad}</Link>
+                    <Link href={y.href} className="nav-oge" aria-current={etkin ? "page" : undefined}><Ikon ad={y.ikon} />{t(y.ad)}</Link>
                   </li>
                 );
               })}
@@ -133,18 +137,20 @@ function KenarMenu({ admin, kapat }: { admin: boolean; kapat: () => void }) {
         )}
       </nav>
       <div className="kenar-alt">
-        <Link href="/hesap" className="nav-oge" aria-current={yol === "/hesap" ? "page" : undefined}><Ikon ad="hesap" />Hesabım</Link>
-        <p className="hint"><Link href="/aydinlatma">Aydınlatma Metni</Link> · <Link href="/kullanim-sartlari">Kullanım Şartları</Link></p>
+        <Link href="/hesap" className="nav-oge" aria-current={yol === "/hesap" ? "page" : undefined}><Ikon ad="hesap" />{t("Hesabım")}</Link>
+        <p className="hint"><Link href="/aydinlatma">{t("Aydınlatma Metni")}</Link> · <Link href="/kullanim-sartlari">{t("Kullanım Şartları")}</Link></p>
       </div>
     </>
   );
 }
 
 function KullaniciMenu({ eposta }: { eposta: string }) {
+  const t = useT();
+  const { lang } = useLang();
   const [acik, setAcik] = useState(false);
   const kap = useRef<HTMLDivElement>(null);
   const dugme = useRef<HTMLButtonElement>(null);
-  const bas = (eposta.trim()[0] ?? "?").toLocaleUpperCase("tr-TR") + (eposta.trim()[1] ?? "").toLocaleUpperCase("tr-TR");
+  const bas = (eposta.trim()[0] ?? "?").toLocaleUpperCase(LOCALE[lang]) + (eposta.trim()[1] ?? "").toLocaleUpperCase(LOCALE[lang]);
 
   useEffect(() => {
     if (!acik) return;
@@ -158,12 +164,12 @@ function KullaniciMenu({ eposta }: { eposta: string }) {
   return (
     <div className="kullanici" ref={kap}>
       <button ref={dugme} type="button" className="avatar" aria-expanded={acik} aria-haspopup="true"
-        aria-label={`Hesap menüsü: ${eposta}`} onClick={() => setAcik((a) => !a)}>{bas}</button>
+        aria-label={t("Hesap menüsü: {eposta}", { eposta })} onClick={() => setAcik((a) => !a)}>{bas}</button>
       {/* Menü kapalıyken de DOM'da kalır (hidden): "çıkış yap" sesli komutu çıkış formunu bulup gönderebilsin */}
-      <div className="kullanici-menu" role="group" aria-label="Hesap" hidden={!acik}>
+      <div className="kullanici-menu" role="group" aria-label={t("Hesap")} hidden={!acik}>
         <p className="hint" style={{ margin: "0 0 8px", wordBreak: "break-all" }}>{eposta}</p>
-        <Link href="/hesap" onClick={() => setAcik(false)}>Hesabım</Link>
-        <form action="/auth/cikis" method="post"><button type="submit">Çıkış</button></form>
+        <Link href="/hesap" onClick={() => setAcik(false)}>{t("Hesabım")}</Link>
+        <form action="/auth/cikis" method="post"><button type="submit">{t("Çıkış")}</button></form>
       </div>
     </div>
   );

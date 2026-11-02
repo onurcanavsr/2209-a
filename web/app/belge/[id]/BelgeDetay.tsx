@@ -9,8 +9,10 @@ import { useSesKomutlari, useSesMetin } from "@/lib/ses/useSesKomutlari";
 import { dikteIste, onayIste } from "@/lib/ses/kayit";
 import { testIstegi } from "@/lib/ses/komutlar";
 import { istekBirak } from "@/lib/ses/bolumGecis";
-import { kindAd, uzantisiz } from "@/lib/belgeTuru";
+import { kindAd, sayfaYazi, uzantisiz } from "@/lib/belgeTuru";
 import { useBelgeBilgi } from "../../components/BelgeBaglam";
+import { useLang } from "@/lib/i18n/client";
+import { sayiYaz, type Lang } from "@/lib/i18n/core";
 import Ozetleme from "./Ozetleme";
 import Oynatici from "./Oynatici";
 import SoruCevap from "./SoruCevap";
@@ -20,14 +22,16 @@ import Kartlar from "./Kartlar";
 import YerImleri from "./YerImleri";
 import VurguluMetin from "./VurguluMetin";
 
-function boyutYazi(b?: number | null) {
+function boyutYazi(lang: Lang, b?: number | null) {
   if (!b) return "";
   return b >= 1048576
-    ? `${(b / 1048576).toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`
+    ? `${sayiYaz(lang, b / 1048576, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`
     : `${Math.max(1, Math.round(b / 1024))} KB`;
 }
 
+
 export default function BelgeDetay({ id }: { id: string }) {
+  const { lang, t } = useLang();
   const router = useRouter();
   const sp = useSearchParams();
   const istenen = sp?.get("b") ?? "";
@@ -44,14 +48,14 @@ export default function BelgeDetay({ id }: { id: string }) {
       const r = await apiFetch(`/api/documents/${id}`);
       if (r.status === 404) {
         try { if (localStorage.getItem("sonBelge") === id) localStorage.removeItem("sonBelge"); } catch {}
-        return setError("Belge bulunamadı.");
+        return setError(t("Belge bulunamadı."));
       }
-      if (!r.ok) return setError(await hataMesaji(r, "Belge yüklenemedi."));
+      if (!r.ok) return setError(await hataMesaji(r, t("Belge yüklenemedi.")));
       setDoc(await r.json());
     } catch {
-      setError("Sunucuya ulaşılamadı.");
+      setError(t("Sunucuya ulaşılamadı."));
     }
-  }, [id]);
+  }, [id, t]);   // t değişince (dil değişince) belge yeniden alınır: not/hata iletileri sunucuda çevrilir
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -63,13 +67,10 @@ export default function BelgeDetay({ id }: { id: string }) {
   // Üst çubuktaki belge etiketi + sol menünün "son belge" bilgisi
   useEffect(() => {
     if (!doc) return;
-    const parcalar = [
-      doc.page_count ? `${doc.page_count} ${doc.kind === "pptx" ? "slayt" : "sayfa"}` : "",
-      boyutYazi(doc.size_bytes),
-    ].filter(Boolean);
+    const parcalar = [sayfaYazi(t, doc), boyutYazi(lang, doc.size_bytes)].filter(Boolean);
     ayarla({ baslik: doc.title, ayrinti: parcalar.join(" • ") });
     try { localStorage.setItem("sonBelge", id); } catch {}
-  }, [doc, id, ayarla]);
+  }, [doc, id, ayarla, t, lang]);
   useEffect(() => () => ayarla(null), [ayarla]);
 
   // ---- Sesli komutlar ----
@@ -84,13 +85,13 @@ export default function BelgeDetay({ id }: { id: string }) {
     "bolum.notlar": () => git("notlar"),
     "bolum.kartlar": () => git("kartlar"),
     "bolum.imler": () => git("imler"),
-    "belge.sil": () => { onayIste("Bu belge silinsin mi? Evet ya da hayır deyin.", () => sil(true)); },
+    "belge.sil": () => { onayIste(t("Bu belge silinsin mi? Evet ya da hayır deyin."), () => sil(true)); },
     // Başka bölümdeyken de çalışsın: ilgili bölüme geçip işi orada başlatır (bölümde zaten açıksa bölümün kendi işleyicisi çalışır)
     ...(bolum !== "test" ? { "test.olustur": () => { istekBirak(id, { tur: "test" }); git("test"); } } : {}),
     ...(bolum !== "soru" ? {
       "soru.sor": () => {
         dikteIste({
-          istem: "Sorunuzu söyleyin.",
+          istem: t("Sorunuzu söyleyin."),
           uygula: (m) => { istekBirak(id, { tur: "soru", metin: m }); git("soru"); },
         });
       },
@@ -99,7 +100,7 @@ export default function BelgeDetay({ id }: { id: string }) {
   // "10 soruluk zor test oluştur" başka bölümdeyken de anlaşılsın
   useSesMetin((metin) => {
     if (bolum === "test") return false;                // test bölümünde Quiz kendisi karşılar
-    const p = testIstegi(metin);
+    const p = testIstegi(metin, lang);
     if (!p) return false;
     istekBirak(id, { tur: "test", adet: p.adet, zorluk: p.zorluk });
     git("test");
@@ -107,34 +108,34 @@ export default function BelgeDetay({ id }: { id: string }) {
   });
 
   async function sil(onayli = false) {
-    if (!onayli && !window.confirm("Bu belge silinsin mi? Bu işlem geri alınamaz.")) return;
+    if (!onayli && !window.confirm(t("Bu belge silinsin mi? Bu işlem geri alınamaz."))) return;
     const r = await apiFetch(`/api/documents/${id}`, { method: "DELETE" });
     if (r.ok) {
       try { if (localStorage.getItem("sonBelge") === id) localStorage.removeItem("sonBelge"); } catch {}
       router.replace("/");
-    } else setError(await hataMesaji(r, "Belge silinemedi."));
+    } else setError(await hataMesaji(r, t("Belge silinemedi.")));
   }
 
-  if (error) return <div><p className="msg err" role="alert">{error}</p><p><Link href="/">← Ana sayfaya dön</Link></p></div>;
-  if (!doc) return <p>Yükleniyor…</p>;
+  if (error) return <div><p className="msg err" role="alert">{error}</p><p><Link href="/">← {t("Ana sayfaya dön")}</Link></p></div>;
+  if (!doc) return <p>{t("Yükleniyor…")}</p>;
 
-  const bolumAd = BOLUMLER.find((b) => b.id === bolum)?.ad ?? "";
+  const bolumAd = t(BOLUMLER.find((b) => b.id === bolum)?.ad ?? "");
   return (
     <div className="belge-sayfa">
-      <nav aria-label="Konum" className="kirinti">
-        <Link href="/">Çalışma Alanı</Link>
+      <nav aria-label={t("Konum")} className="kirinti">
+        <Link href="/">{t("Çalışma Alanı")}</Link>
         <span aria-hidden="true"> › </span>
         <span aria-current="page">{bolumAd}</span>
       </nav>
       <h1 className="belge-baslik">{doc.title}</h1>
       <p className="hint" style={{ marginTop: 0 }}>
         {kindAd(doc.kind)}
-        {doc.page_count ? ` · ${doc.page_count} ${doc.kind === "pptx" ? "slayt" : "sayfa"}` : ""}
-        {doc.char_count ? ` · ${doc.char_count.toLocaleString("tr-TR")} karakter` : ""}
-        {" · "}<span className={`badge ${doc.status}`}>{DURUM[doc.status]}</span>
+        {doc.page_count ? ` · ${sayfaYazi(t, doc)}` : ""}
+        {doc.char_count ? ` · ${t("{n} karakter", { n: sayiYaz(lang, doc.char_count) })}` : ""}
+        {" · "}<span className={`badge ${doc.status}`}>{t(DURUM[doc.status])}</span>
       </p>
       <div role="status" aria-live="polite">
-        {doc.status === "processing" && <p className="msg ok">Belge işleniyor, bu sayfa otomatik güncellenir…</p>}
+        {doc.status === "processing" && <p className="msg ok">{t("Belge işleniyor, bu sayfa otomatik güncellenir…")}</p>}
       </div>
       {doc.status === "failed" && <p className="msg err" role="alert">{doc.error}</p>}
       {doc.note && doc.status === "ready" && <p className="msg warn">{doc.note}</p>}
@@ -150,7 +151,7 @@ export default function BelgeDetay({ id }: { id: string }) {
           {bolum === "imler" && <YerImleri docId={id} />}
         </>
       )}
-      <p style={{ marginTop: 24 }}><button type="button" className="btn danger" style={{ width: "auto" }} onClick={() => sil()}>Belgeyi sil</button></p>
+      <p style={{ marginTop: 24 }}><button type="button" className="btn danger" style={{ width: "auto" }} onClick={() => sil()}>{t("Belgeyi sil")}</button></p>
     </div>
   );
 }
@@ -158,9 +159,12 @@ export default function BelgeDetay({ id }: { id: string }) {
 // "Metni Dinle" ve "Çıkarılan Metin" bölümleri aynı metin kutusunu paylaşır:
 // dinlerken okunan kelime işaretlenir; metin bölümünde bir kelime seçilip yer imi eklenebilir.
 function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "dinle" | "metin"; hedef: number | null }) {
+  const { lang, t } = useLang();
   const metinKap = useRef<HTMLDivElement>(null);
   const onceki = useRef(-1);
-  const kelimeler = useMemo(() => (doc.text_preview ?? "").split(/\s+/).filter(Boolean), [doc.text_preview]);
+  // Slayt işareti çıkarmada [Slayt n] olarak saklanır; İngilizce arayüzde [Slide n] gösterilir (kelime sayısı aynı kalır → yer imi sıraları bozulmaz)
+  const gosterilenMetin = useMemo(() => (lang === "en" ? (doc.text_preview ?? "").replace(/\[Slayt (\d+)\]/g, "[Slide $1]") : (doc.text_preview ?? "")), [doc.text_preview, lang]);
+  const kelimeler = useMemo(() => gosterilenMetin.split(/\s+/).filter(Boolean), [gosterilenMetin]);
   const isaretle = useCallback((i: number) => {
     vurguIsaretle(metinKap.current, onceki.current, i);
     onceki.current = i;
@@ -178,7 +182,7 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
     setSecili(i);
     setEtiket(ozet(i));
     setHata("");
-    setDurum(`Seçilen yer: kelime ${i + 1}, “${kelimeler[i] ?? ""}”.`);
+    setDurum(t("Seçilen yer: kelime {n}, “{kelime}”.", { n: i + 1, kelime: kelimeler[i] ?? "" }));
   }
 
   // Seçili kelimeyi metin üzerinde işaretle (VurguluMetin memo olduğundan sınıf doğrudan DOM'da değiştirilir)
@@ -192,12 +196,12 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
   // Yer imi bağlantısından gelindiyse o kelimeye git
   useEffect(() => {
     if (mod !== "metin" || hedef === null) return;
-    if (hedef >= kelimeler.length) { setHata("Bu yer imi, ekranda gösterilen metin bölümünün dışında kalıyor."); return; }
+    if (hedef >= kelimeler.length) { setHata(t("Bu yer imi, ekranda gösterilen metin bölümünün dışında kalıyor.")); return; }
     setSecili(hedef);
     setEtiket(ozet(hedef));
     metinKap.current?.querySelector<HTMLElement>(`[data-w="${hedef}"]`)?.scrollIntoView({ block: "center", behavior: "auto" });
-    setDurum(`Yer imine gidildi: “${kelimeler.slice(hedef, hedef + 8).join(" ")}”.`);
-  }, [mod, hedef, kelimeler, ozet]);
+    setDurum(t("Yer imine gidildi: “{metin}”.", { metin: kelimeler.slice(hedef, hedef + 8).join(" ") }));
+  }, [mod, hedef, kelimeler, ozet, t]);
 
   function tikla(e: React.MouseEvent) {
     if (mod !== "metin") return;
@@ -215,9 +219,9 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ label: etiket.trim(), word_index: secili, snippet: kelimeler.slice(secili, secili + 25).join(" ").slice(0, 200) }),
       });
-      if (!r.ok) setHata(await hataMesaji(r, "Yer imi eklenemedi."));
-      else setDurum("Yer imi eklendi. Yer İmleri bölümünden ulaşabilirsiniz.");
-    } catch { setHata("Sunucuya ulaşılamadı."); }
+      if (!r.ok) setHata(await hataMesaji(r, t("Yer imi eklenemedi.")));
+      else setDurum(t("Yer imi eklendi. Yer İmleri bölümünden ulaşabilirsiniz."));
+    } catch { setHata(t("Sunucuya ulaşılamadı.")); }
     setKaydediyor(false);
   }
 
@@ -225,38 +229,38 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
   const baslikId = mod === "dinle" ? "dinle-baslik" : "metin-baslik";
   return (
     <section aria-labelledby={baslikId} className="panel">
-      <h2 id={baslikId} className="panel-h">{mod === "dinle" ? "Metni Dinle" : "Çıkarılan Metin"}</h2>
+      <h2 id={baslikId} className="panel-h">{mod === "dinle" ? t("Metni Dinle") : t("Çıkarılan Metin")}</h2>
       <p className="panel-alt">
         {mod === "dinle"
-          ? "Belgenin metnini sesli dinleyin; okunan kelime aşağıdaki metinde işaretlenir."
-          : "Belgeden çıkarılan metin. Bir kelimeye tıklayarak o yere yer imi ekleyebilirsiniz."}
+          ? t("Belgenin metnini sesli dinleyin; okunan kelime aşağıdaki metinde işaretlenir.")
+          : t("Belgeden çıkarılan metin. Bir kelimeye tıklayarak o yere yer imi ekleyebilirsiniz.")}
       </p>
 
       {mod === "dinle" && (
         <>
-          <Oynatici key="metin" docId={id} source="text" etiket="Metni dinle"
+          <Oynatici key={`metin-${lang}`} docId={id} source="text" etiket={t("Metni dinle")}
             gorunen={kelimeler} onAktif={isaretle}
-            dosyaAdi={`${uzantisiz(doc.title)} - metin.mp3`} indirilebilir={(doc.char_count ?? 0) <= 60000} />
-          <p className="hint">Metnin tamamını dinlemek günlük sesli okuma kotanızdan düşer; özeti dinlemek çok daha kısadır.</p>
+            dosyaAdi={`${uzantisiz(doc.title)} - ${t("metin")}.mp3`} indirilebilir={(doc.char_count ?? 0) <= 60000} />
+          <p className="hint">{t("Metnin tamamını dinlemek günlük sesli okuma kotanızdan düşer; özeti dinlemek çok daha kısadır.")}</p>
         </>
       )}
 
       {mod === "metin" && (
         <form onSubmit={yerImiEkle} className="alt-kart" aria-labelledby="yer-imi-baslik">
-          <h3 id="yer-imi-baslik" className="liste-baslik" style={{ marginTop: 0 }}>Yer imi ekle</h3>
+          <h3 id="yer-imi-baslik" className="liste-baslik" style={{ marginTop: 0 }}>{t("Yer imi ekle")}</h3>
           <div className="iki-sutun">
             <div>
-              <label htmlFor="yi-sira">Kelime sırası (1–{kelimeler.length})</label>
+              <label htmlFor="yi-sira">{t("Kelime sırası (1–{n})", { n: kelimeler.length })}</label>
               <input id="yi-sira" type="number" min={1} max={Math.max(1, kelimeler.length)} value={secili === null ? "" : secili + 1}
                 onChange={(e) => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= 1 && n <= kelimeler.length) sec(n - 1); }} />
-              <p className="hint">Metinde bir kelimeye tıklayın ya da sırasını yazın.</p>
+              <p className="hint">{t("Metinde bir kelimeye tıklayın ya da sırasını yazın.")}</p>
             </div>
             <div>
-              <label htmlFor="yi-ad">Yer imi adı</label>
+              <label htmlFor="yi-ad">{t("Yer imi adı")}</label>
               <input id="yi-ad" type="text" value={etiket} onChange={(e) => setEtiket(e.target.value)} maxLength={120} disabled={secili === null} />
             </div>
           </div>
-          <button type="submit" className="btn" style={{ width: "auto" }} disabled={secili === null || !etiket.trim() || kaydediyor}>Yer imi ekle</button>
+          <button type="submit" className="btn" style={{ width: "auto" }} disabled={secili === null || !etiket.trim() || kaydediyor}>{t("Yer imi ekle")}</button>
         </form>
       )}
 
@@ -264,10 +268,10 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
       <div role="alert">{hata && <p className="msg err">{hata}</p>}</div>
 
       <div className={"doctext" + (mod === "metin" ? " tiklanir" : "")} ref={metinKap} tabIndex={0} role="region" onClick={tikla}
-        aria-label="Çıkarılan metin (okumak için ok tuşlarını kullanın)">
-        <VurguluMetin text={doc.text_preview ?? ""} />
+        aria-label={t("Çıkarılan metin (okumak için ok tuşlarını kullanın)")}>
+        <VurguluMetin text={gosterilenMetin} />
       </div>
-      {uzun && <p className="hint">Burada metnin yalnızca ilk bölümü gösteriliyor. Özetleme ve sesli okuma tüm metni kullanacak; kelime vurgusu ve yer imleri yalnızca burada gösterilen bölümde çalışır.</p>}
+      {uzun && <p className="hint">{t("Burada metnin yalnızca ilk bölümü gösteriliyor. Özetleme ve sesli okuma tüm metni kullanacak; kelime vurgusu ve yer imleri yalnızca burada gösterilen bölümde çalışır.")}</p>}
     </section>
   );
 }

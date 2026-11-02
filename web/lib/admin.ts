@@ -1,17 +1,18 @@
-// Yönetim paneli ortak tipleri ve biçimlendiriciler.
+// Yönetim paneli ortak tipleri ve biçimlendiriciler. Biçimlendiriciler isteğe bağlı `lang` alır (varsayılan Türkçe).
+import { LOCALE, type Lang } from "./i18n/core";
 
 export const EYLEM_AD: Record<string, string> = {
   summarize: "Özetleme", ask: "Soru-cevap", quiz: "Test üretimi", tts: "Sesli okuma", upload: "Belge yükleme",
 };
 export const eylemAd = (a: string) => EYLEM_AD[a] ?? a;
 
-export const usd = (n: number) =>
-  "$" + n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: n < 1 ? 4 : 2 });
-export const sayi = (n: number) => n.toLocaleString("tr-TR");
-export const tarih = (s?: string | null) =>
-  s ? new Date(s).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" }) : "—";
-export const tarihSaat = (s?: string | null) =>
-  s ? new Date(s).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+export const usd = (n: number, lang: Lang = "tr") =>
+  "$" + n.toLocaleString(LOCALE[lang], { minimumFractionDigits: 2, maximumFractionDigits: n < 1 ? 4 : 2 });
+export const sayi = (n: number, lang: Lang = "tr") => n.toLocaleString(LOCALE[lang]);
+export const tarih = (s?: string | null, lang: Lang = "tr") =>
+  s ? new Date(s).toLocaleDateString(LOCALE[lang], { day: "numeric", month: "long", year: "numeric" }) : "—";
+export const tarihSaat = (s?: string | null, lang: Lang = "tr") =>
+  s ? new Date(s).toLocaleString(LOCALE[lang], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
 
 export type Ozet = {
   users: number; inactive_users: number; admins: number; new_7d: number; active_7d: number;

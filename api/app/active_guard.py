@@ -17,6 +17,7 @@ log = logging.getLogger(__name__)
 EXEMPT = {("GET", "/api/me"), ("DELETE", "/api/me"), ("GET", "/health")}
 DEFAULT_TTL = 30.0
 MESSAGE = "Hesabınız devre dışı bırakıldı. Bilgi için yönetici ile iletişime geçin."
+MESSAGE_EN = "Your account has been deactivated. Please contact an administrator for more information."
 
 
 class ActiveCache:
@@ -54,6 +55,17 @@ class ActiveGuard:
         self.cache = cache if cache is not None else ACTIVE_CACHE
 
     @staticmethod
+    def _english(scope: dict) -> bool:
+        """X-Lang: en (istemci), yoksa Accept-Language'in ilk dili İngilizce ise True. Yalnızca standart kütüphane."""
+        for k, v in scope.get("headers", []):
+            if k == b"x-lang":
+                return v.decode("latin-1").strip().lower().startswith("en")
+        for k, v in scope.get("headers", []):
+            if k == b"accept-language":
+                return v.decode("latin-1").strip().lower().startswith("en")
+        return False
+
+    @staticmethod
     def _bearer(scope: dict) -> str | None:
         for k, v in scope.get("headers", []):
             if k == b"authorization":
@@ -89,7 +101,7 @@ class ActiveGuard:
         user_id = claims.get("sub") if isinstance(claims, dict) else None
         if not user_id or await self._active(str(user_id)):
             return await self.app(scope, receive, send)
-        body = json.dumps({"detail": MESSAGE}, ensure_ascii=False).encode()
+        body = json.dumps({"detail": MESSAGE_EN if self._english(scope) else MESSAGE}, ensure_ascii=False).encode()
         await send({"type": "http.response.start", "status": 403,
                     "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())]})
         await send({"type": "http.response.body", "body": body})

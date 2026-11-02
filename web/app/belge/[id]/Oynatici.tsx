@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { apiFetch, hataMesaji } from "@/lib/api";
 import { hizala, kelimeBul, oranHesapla, takipHazirla, type Takip } from "@/lib/takip";
 import { useMikrofonAcilinca, useSesKomutlari } from "@/lib/ses/useSesKomutlari";
+import { useT } from "@/lib/i18n/client";
 
 type Props = {
   docId: string;
@@ -20,6 +21,7 @@ let sonAktifOynatici: string | null = null;
 
 // Bölüm bölüm (cümle gruplarıyla) çalar: ilk bölüm hazır olur olmaz başlar, sıradaki önceden hazırlanır.
 export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indirilebilir = true, gorunen, onAktif }: Props) {
+  const t = useT();
   const [voices, setVoices] = useState<Record<string, string>>({});
   const [voice, setVoice] = useState("");
   const [rate, setRate] = useState(1);
@@ -91,8 +93,8 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
     eslesmeRef.current = k && g ? hizala(k.seg.flatMap((s) => s.split(/\s+/).filter(Boolean)), g) : null;
   }
 
-  function yeniTakip(t: Takip | null) {
-    takipRef.current = t;
+  function yeniTakip(tk: Takip | null) {
+    takipRef.current = tk;
   }
 
   function vurguTemizle() {
@@ -101,9 +103,9 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
   }
 
   function guncelle() {
-    const a = audio.current, t = takipRef.current, k = konusulanRef.current, m = eslesmeRef.current;
-    if (!gosterRef.current || !a || !t || !k || !m || !isFinite(a.duration) || a.duration <= 0) return;
-    const yerel = kelimeBul(t, oranHesapla(a.currentTime, a.duration));
+    const a = audio.current, tk = takipRef.current, k = konusulanRef.current, m = eslesmeRef.current;
+    if (!gosterRef.current || !a || !tk || !k || !m || !isFinite(a.duration) || a.duration <= 0) return;
+    const yerel = kelimeBul(tk, oranHesapla(a.currentTime, a.duration));
     const d = m[k.starts[idxRef.current] + yerel] ?? -1;
     if (d >= 0 && d !== aktifRef.current) { aktifRef.current = d; onAktifRef.current?.(d); }
   }
@@ -113,7 +115,7 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
     if (mevcut) return mevcut;
     const p = (async () => {
       const r = await apiFetch(`/api/documents/${docId}/audio/segment/${n}?${qs()}`);
-      if (!r.ok) throw new Error(await hataMesaji(r, "Ses hazırlanamadı."));
+      if (!r.ok) throw new Error(await hataMesaji(r, t("Ses hazırlanamadı.")));
       return URL.createObjectURL(await r.blob());
     })();
     urls.current.set(n, p);
@@ -123,7 +125,7 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
 
   async function manifestYukle() {
     const r = await apiFetch(`/api/documents/${docId}/audio/manifest?${qs()}`);
-    if (!r.ok) throw new Error(await hataMesaji(r, "Ses bilgisi alınamadı."));
+    if (!r.ok) throw new Error(await hataMesaji(r, t("Ses bilgisi alınamadı.")));
     const m = await r.json();
     totalRef.current = m.segments;
     setTotal(m.segments);
@@ -140,7 +142,7 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
       a.onended = () => {
         const n = idxRef.current + 1;
         if (n < totalRef.current) startAt(n);
-        else { setPlaying(false); setStatus("Okuma tamamlandı."); idxRef.current = 0; setIdx(0); hasSrc.current = false; setStarted(false); yeniTakip(null); vurguTemizle(); }
+        else { setPlaying(false); setStatus(t("Okuma tamamlandı.")); idxRef.current = 0; setIdx(0); hasSrc.current = false; setStarted(false); yeniTakip(null); vurguTemizle(); }
       };
       audio.current = a;
     }
@@ -168,7 +170,7 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
     } catch (e) {
       setPlaying(false);
       const err = e as Error;
-      setError(err.name === "NotAllowedError" ? "Tarayıcı oynatmayı engelledi. Düğmeye tekrar basın." : err.message || "Ses oynatılamadı.");
+      setError(err.name === "NotAllowedError" ? t("Tarayıcı oynatmayı engelledi. Düğmeye tekrar basın.") : err.message || t("Ses oynatılamadı."));
     } finally {
       if (alive.current && my === tokenRef.current) setBusy(false);
     }
@@ -177,31 +179,31 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
   async function toggle() {
     sonAktifOynatici = benId;
     const a = getAudio();
-    if (playing) { a.pause(); setPlaying(false); setStatus("Duraklatıldı."); return; }
+    if (playing) { a.pause(); setPlaying(false); setStatus(t("Duraklatıldı.")); return; }
     setError("");
     try {
       if (totalRef.current === 0) await manifestYukle();
     } catch (e) { setError((e as Error).message); return; }
     if (hasSrc.current && a.paused && !a.ended) {
-      try { await a.play(); setPlaying(true); setStatus("Okunuyor."); } catch { setError("Oynatılamadı."); }
+      try { await a.play(); setPlaying(true); setStatus(t("Okunuyor.")); } catch { setError(t("Oynatılamadı.")); }
       return;
     }
-    setStatus("Okuma başlıyor.");
+    setStatus(t("Okuma başlıyor."));
     await startAt(idxRef.current);
   }
 
   function atla(sn: number) {
     const a = getAudio();
     if (!hasSrc.current) return;
-    const t = a.currentTime + sn;
-    if (t < 0) { if (idxRef.current > 0) startAt(idxRef.current - 1); else a.currentTime = 0; }
-    else if (isFinite(a.duration) && t >= a.duration) { const n = idxRef.current + 1; if (n < totalRef.current) startAt(n); }
-    else { a.currentTime = t; guncelle(); }
+    const hedef = a.currentTime + sn;
+    if (hedef < 0) { if (idxRef.current > 0) startAt(idxRef.current - 1); else a.currentTime = 0; }
+    else if (isFinite(a.duration) && hedef >= a.duration) { const n = idxRef.current + 1; if (n < totalRef.current) startAt(n); }
+    else { a.currentTime = hedef; guncelle(); }
   }
 
   function bolum(d: number) {
     const n = idxRef.current + d;
-    if (n >= 0 && n < totalRef.current) { setStatus(`Bölüm ${n + 1}.`); startAt(n); }
+    if (n >= 0 && n < totalRef.current) { setStatus(t("Bölüm {n}.", { n: n + 1 })); startAt(n); }
   }
 
   function vurguDegistir() {
@@ -223,21 +225,21 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
     temizle();
     voiceRef.current = v; setVoice(v);
     idxRef.current = 0; setIdx(0); yeniTakip(null); vurguTemizle();
-    setStatus("Ses değişti. Dinlemek için düğmeye basın.");
+    setStatus(t("Ses değişti. Dinlemek için düğmeye basın."));
     manifestYukle().catch(() => {});
   }
 
   async function indir() {
-    setBusy(true); setError(""); setStatus("MP3 hazırlanıyor, bu bir süre alabilir…");
+    setBusy(true); setError(""); setStatus(t("MP3 hazırlanıyor, bu bir süre alabilir…"));
     try {
       const r = await apiFetch(`/api/documents/${docId}/audio/download?${qs()}`);
-      if (!r.ok) throw new Error(await hataMesaji(r, "MP3 hazırlanamadı."));
+      if (!r.ok) throw new Error(await hataMesaji(r, t("MP3 hazırlanamadı.")));
       const u = URL.createObjectURL(await r.blob());
       const a = document.createElement("a");
       a.href = u; a.download = dosyaAdi;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(u), 10000);
-      setStatus("MP3 indirildi.");
+      setStatus(t("MP3 indirildi."));
     } catch (e) {
       setStatus(""); setError((e as Error).message);
     }
@@ -300,12 +302,12 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
     "oku.hizli": () => {
       const i = HIZLAR.indexOf(rate);
       if (i < 0 || i >= HIZLAR.length - 1 || !benimMi()) return false;
-      hizDegistir(HIZLAR[i + 1]); setStatus(`Hız ${HIZLAR[i + 1]} kat.`); return true;
+      hizDegistir(HIZLAR[i + 1]); setStatus(t("Hız {x} kat.", { x: HIZLAR[i + 1] })); return true;
     },
     "oku.yavas": () => {
       const i = HIZLAR.indexOf(rate);
       if (i <= 0 || !benimMi()) return false;
-      hizDegistir(HIZLAR[i - 1]); setStatus(`Hız ${HIZLAR[i - 1]} kat.`); return true;
+      hizDegistir(HIZLAR[i - 1]); setStatus(t("Hız {x} kat.", { x: HIZLAR[i - 1] })); return true;
     },
   }, source === "summary" ? 2 : 1);
 
@@ -314,47 +316,47 @@ export default function Oynatici({ docId, source, level, etiket, dosyaAdi, indir
     <div role="group" aria-label={etiket} className="player">
       <div className="row">
         <button type="button" className="btn pbtn" onClick={toggle} disabled={busy && !playing}>
-          {playing ? "⏸ Duraklat" : busy ? "Hazırlanıyor…" : `▶ ${etiket}`}
+          {playing ? `⏸ ${t("Duraklat")}` : busy ? t("Hazırlanıyor…") : `▶ ${etiket}`}
         </button>
-        <button type="button" className="btn sec" onClick={() => atla(-10)} disabled={!started} aria-label="10 saniye geri">⏪ 10 sn</button>
-        <button type="button" className="btn sec" onClick={() => atla(10)} disabled={!started} aria-label="10 saniye ileri">10 sn ⏩</button>
-        <button type="button" className="btn sec" onClick={() => bolum(-1)} disabled={!started || idx === 0} aria-label="Önceki bölüm">⏮</button>
-        <button type="button" className="btn sec" onClick={() => bolum(1)} disabled={!started || idx + 1 >= total} aria-label="Sonraki bölüm">⏭</button>
+        <button type="button" className="btn sec" onClick={() => atla(-10)} disabled={!started} aria-label={t("10 saniye geri")}>⏪ {t("10 sn")}</button>
+        <button type="button" className="btn sec" onClick={() => atla(10)} disabled={!started} aria-label={t("10 saniye ileri")}>{t("10 sn")} ⏩</button>
+        <button type="button" className="btn sec" onClick={() => bolum(-1)} disabled={!started || idx === 0} aria-label={t("Önceki bölüm")}>⏮</button>
+        <button type="button" className="btn sec" onClick={() => bolum(1)} disabled={!started || idx + 1 >= total} aria-label={t("Sonraki bölüm")}>⏭</button>
       </div>
       <div className="row" style={{ marginTop: 10 }}>
-        <label htmlFor={`hiz-${source}`} style={{ margin: 0, fontWeight: 400 }}>Hız</label>
+        <label htmlFor={`hiz-${source}`} style={{ margin: 0, fontWeight: 400 }}>{t("Hız")}</label>
         <select id={`hiz-${source}`} value={rate} onChange={(e) => hizDegistir(Number(e.target.value))}>
           {HIZLAR.map((h) => <option key={h} value={h}>{h}x</option>)}
         </select>
         {Object.keys(voices).length > 0 && (
           <>
-            <label htmlFor={`ses-${source}`} style={{ margin: 0, fontWeight: 400 }}>Ses</label>
+            <label htmlFor={`ses-${source}`} style={{ margin: 0, fontWeight: 400 }}>{t("Ses")}</label>
             <select id={`ses-${source}`} value={voice} onChange={(e) => sesDegistir(e.target.value)} disabled={busy}>
-              {Object.entries(voices).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {Object.entries(voices).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
             </select>
           </>
         )}
         {gorunen && gorunen.length > 0 && (
           <button type="button" className="btn sec" aria-pressed={goster} onClick={vurguDegistir}>
-            Kelime vurgusu
+            {t("Kelime vurgusu")}
           </button>
         )}
         {indirilebilir && (
-          <button type="button" className="btn sec" onClick={indir} disabled={busy}>MP3 indir</button>
+          <button type="button" className="btn sec" onClick={indir} disabled={busy}>{t("MP3 indir")}</button>
         )}
       </div>
       {total > 0 && (
         <div style={{ marginTop: 10 }}>
-          <div className="pbar" role="progressbar" aria-label="Okuma ilerlemesi" aria-valuemin={1} aria-valuemax={total}
-               aria-valuenow={Math.min(idx + 1, total)} aria-valuetext={`Bölüm ${Math.min(idx + 1, total)} / ${total}`}>
+          <div className="pbar" role="progressbar" aria-label={t("Okuma ilerlemesi")} aria-valuemin={1} aria-valuemax={total}
+               aria-valuenow={Math.min(idx + 1, total)} aria-valuetext={t("Bölüm {i} / {n}", { i: Math.min(idx + 1, total), n: total })}>
             <i style={{ width: `${((Math.min(idx + 1, total)) / total) * 100}%` }} />
           </div>
-          <span className="hint">Bölüm {Math.min(idx + 1, total)} / {total} · yaklaşık {dk} dk</span>
+          <span className="hint">{t("Bölüm {i} / {n} · yaklaşık {dk} dk", { i: Math.min(idx + 1, total), n: total, dk })}</span>
         </div>
       )}
       {/* Vurgu ekrandaki metnin üzerinde yapılır (canlı bölge DEĞİLDİR; ekran okuyucu sesi/metni kendi kullanır) */}
       {started && goster && gorunen && gorunen.length > 0 && (
-        <p className="hint">Okunan kelime metin üzerinde vurgulanır. Vurgu ses süresine göre hesaplanır, bu yüzden bazen birkaç kelime sapabilir.</p>
+        <p className="hint">{t("Okunan kelime metin üzerinde vurgulanır. Vurgu ses süresine göre hesaplanır, bu yüzden bazen birkaç kelime sapabilir.")}</p>
       )}
       {/* Canlı bölge yalnızca önemli anları (başla/duraklat/bitti/hata) duyurur; her bölümü değil */}
       <div role="status" aria-live="polite">{status && <p className="hint">{status}</p>}</div>

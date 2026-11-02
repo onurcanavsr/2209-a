@@ -1,7 +1,11 @@
-/** Sesli komut sözlüğü ve eşleştirici. Saf TypeScript (React/DOM yok) → birim testle denenebilir.
+/** Sesli komut sözlüğü ve eşleştirici (Türkçe + İngilizce). Saf TypeScript (React/DOM yok) → birim testle denenebilir.
+ *  Türkçe tablo aşağıdadır; İngilizcesi `komutlar.en.ts` içindedir. Her işlev `lang` alır (varsayılan "tr").
  *  Tanıyıcının çıktısı (ör. "özetleye", "Ozetle lütfen") yaklaşık eşleştirilir; serbest dil anlama yoktur.
  *  DİKKAT: ifadeleri değiştirirseniz api/app/stt/vocab.py içindeki ipucu listesini de güncelleyin. */
 
+import { DOLGU_EN, EVET_EN, HAYIR_EN, KOMUTLAR_EN, SAYI_KELIME_EN, SIRA_KELIME_EN } from "./komutlar.en";
+
+export type Dil = "tr" | "en";
 export type KomutTanimi = { id: string; ad: string; ifadeler: string[] };
 
 export const KOMUTLAR: KomutTanimi[] = [
@@ -17,6 +21,8 @@ export const KOMUTLAR: KomutTanimi[] = [
   { id: "tema.otomatik", ad: "Otomatik tema", ifadeler: ["otomatik tema", "varsayılan tema", "tema otomatik"] },
   { id: "cikis", ad: "Çıkış yap", ifadeler: ["çıkış yap", "oturumu kapat", "çıkış", "hesaptan çık"] },
   { id: "yardim", ad: "Komutları listele", ifadeler: ["yardım", "ne diyebilirim", "komutlar", "komut listesi", "komutları söyle"] },
+  { id: "dil.tr", ad: "Türkçeye geç", ifadeler: ["türkçeye geç", "türkçe", "dili türkçe yap", "türkçe konuş"] },
+  { id: "dil.en", ad: "İngilizceye geç", ifadeler: ["ingilizceye geç", "ingilizce", "dili ingilizce yap", "ingilizce konuş"] },
   // ---- belge sayfasında: bölümlere geçiş (sol menüdeki bölümler) ----
   { id: "bolum.soru", ad: "Belgeye soru sor bölümü", ifadeler: ["soru sorma bölümü", "soru cevap bölümü", "soru cevap", "belgeye soru sor bölümü"] },
   { id: "bolum.ozet", ad: "Özet bölümü", ifadeler: ["özet bölümü", "özete git", "özet sayfası"] },
@@ -70,7 +76,7 @@ export const KOMUTLAR: KomutTanimi[] = [
   { id: "test.sil", ad: "Testi sil", ifadeler: ["testi sil", "bu testi sil"] },
 ];
 
-/** Küçük harf (tr-TR: I→ı, İ→i), aksansız, noktalamasız, tek boşluklu. */
+/** Küçük harf (tr-TR: I→ı, İ→i; ı sonra i'ye indirilir, İngilizce metinde de aynı sonucu verir), aksansız, noktalamasız, tek boşluklu. */
 export function normalize(s: string): string {
   return s
     .toLocaleLowerCase("tr-TR")
@@ -83,10 +89,18 @@ export function normalize(s: string): string {
 }
 
 // Komutla ilgisiz dolgu sözcükler ("özetler misin lütfen", "şimdi oku")
-const DOLGU = new Set(["lutfen", "simdi", "asistan", "hadi", "bana", "bir", "rica", "ederim", "misin", "musun", "misiniz", "musunuz", "tamam", "su", "bakalim"]);
+const DOLGU_TR = new Set(["lutfen", "simdi", "asistan", "hadi", "bana", "bir", "rica", "ederim", "misin", "musun", "misiniz", "musunuz", "tamam", "su", "bakalim"]);
+const DOLGU_SET: Record<Dil, Set<string>> = { tr: DOLGU_TR, en: new Set(DOLGU_EN) };
 
-function temizle(n: string): string {
-  return n.split(" ").filter((t) => t && !DOLGU.has(t)).join(" ");
+function temizle(n: string, lang: Dil = "tr"): string {
+  const d = DOLGU_SET[lang];
+  return n.split(" ").filter((t) => t && !d.has(t)).join(" ");
+}
+
+/** Dile göre komut tablosu. İngilizce tabloda eksik kimlik olursa Türkçesi kullanılır (komut asla kaybolmaz). */
+export function komutlari(lang: Dil = "tr"): KomutTanimi[] {
+  if (lang !== "en") return KOMUTLAR;
+  return KOMUTLAR.map((k) => ({ id: k.id, ...(KOMUTLAR_EN[k.id] ?? { ad: k.ad, ifadeler: k.ifadeler }) }));
 }
 
 export function mesafe(a: string, b: string): number {
@@ -112,7 +126,10 @@ export function benzerlik(a: string, b: string): number {
 const ESIK = 0.8;       // kabul için en düşük benzerlik
 const FARK = 0.07;      // farklı bir komutla arasındaki en az fark (yoksa belirsiz sayılır)
 
-const HAZIR = KOMUTLAR.map((k) => ({ ...k, norm: k.ifadeler.map((x) => temizle(normalize(x))) }));
+const HAZIR_ONBELLEK: Partial<Record<Dil, (KomutTanimi & { norm: string[] })[]>> = {};
+function hazir(lang: Dil) {
+  return (HAZIR_ONBELLEK[lang] ??= komutlari(lang).map((k) => ({ ...k, norm: k.ifadeler.map((x) => temizle(normalize(x), lang)) })));
+}
 
 function skorla(heard: string, ifade: string): number {
   let s = benzerlik(heard, ifade);
@@ -134,11 +151,11 @@ export type Sonuc =
   | { durum: "yok" };
 
 /** `uygun`: o an bir işleyicisi olan komut kimlikleri (sayfa/bağlama göre değişir). */
-export function esles(metin: string, uygun: Iterable<string>): Sonuc {
-  const heard = temizle(normalize(metin));
+export function esles(metin: string, uygun: Iterable<string>, lang: Dil = "tr"): Sonuc {
+  const heard = temizle(normalize(metin), lang);
   if (!heard) return { durum: "bos" };
   const izinli = new Set(uygun);
-  const skorlar = HAZIR.filter((k) => izinli.has(k.id))
+  const skorlar = hazir(lang).filter((k) => izinli.has(k.id))
     .map((k) => ({ id: k.id, ad: k.ad, skor: Math.max(...k.norm.map((x) => skorla(heard, x))) }))
     .sort((a, b) => b.skor - a.skor);
   const [en, ikinci] = skorlar;
@@ -162,9 +179,9 @@ const SIRA_KELIME: Record<string, number> = {
 };
 
 /** "evet / hayır" yanıtı. Hem de hayır varsa (ör. "evet hayır") güvenli tarafta kalıp belirsiz sayar. */
-export function evetHayir(metin: string): "evet" | "hayir" | null {
-  const EVET = ["evet", "onayliyorum", "onayla", "tamam", "olur", "kabul", "dogru"];
-  const HAYIR = ["hayir", "vazgec", "vazgectim", "iptal", "olmaz", "istemiyorum"];
+export function evetHayir(metin: string, lang: Dil = "tr"): "evet" | "hayir" | null {
+  const EVET = lang === "en" ? EVET_EN : ["evet", "onayliyorum", "onayla", "tamam", "olur", "kabul", "dogru"];
+  const HAYIR = lang === "en" ? HAYIR_EN : ["hayir", "vazgec", "vazgectim", "iptal", "olmaz", "istemiyorum"];
   const tok = normalize(metin).split(" ").filter(Boolean);   // dolgu temizliği YOK: "tamam" burada anlamlı
   const var_ = (liste: string[]) => tok.some((t) => liste.some((k) => benzerlik(t, k) >= 0.8));
   const e = var_(EVET), h = var_(HAYIR);
@@ -175,31 +192,34 @@ export function evetHayir(metin: string): "evet" | "hayir" | null {
 export type TestIstegi = { adet?: 5 | 10; zorluk?: "easy" | "medium" | "hard" };
 
 /** "10 soruluk zor test oluştur" gibi parametreli test isteği. Parametre yoksa null (sabit komut devreye girer). */
-export function testIstegi(metin: string): TestIstegi | null {
-  const tok = temizle(normalize(metin)).split(" ").filter(Boolean);
-  const testVar = tok.some((t) => /^(test|quiz|pekistirme)/.test(t));
-  const fiil = tok.some((t) => /^(olustur|baslat|hazirla|yap|uret|ver|yeni|cikar)/.test(t));
+export function testIstegi(metin: string, lang: Dil = "tr"): TestIstegi | null {
+  const en = lang === "en";
+  const tok = temizle(normalize(metin), lang).split(" ").filter(Boolean);
+  const testVar = tok.some((t) => (en ? /^(quiz|test|practice)/ : /^(test|quiz|pekistirme)/).test(t));
+  const fiil = tok.some((t) => (en ? /^(create|start|make|generate|new|give|do|begin|prepare)/ : /^(olustur|baslat|hazirla|yap|uret|ver|yeni|cikar)/).test(t));
   const r: TestIstegi = {};
   for (const t of tok) {
-    const n = /^\d+$/.test(t) ? Number(t) : SAYI_KELIME[t.replace(/(luk|lik|luk)$/, "")];
+    const n = /^\d+$/.test(t) ? Number(t) : en ? SAYI_KELIME_EN[t] : SAYI_KELIME[t.replace(/(luk|lik|luk)$/, "")];
     if (n === 5 || n === 10) r.adet = n;
-    const z = t.replace(/(dir|lu)$/, "");
-    if (z === "kolay") r.zorluk = "easy";
-    else if (z === "orta") r.zorluk = "medium";
-    else if (z === "zor") r.zorluk = "hard";
+    const z = en ? t : t.replace(/(dir|lu)$/, "");
+    if (z === "kolay" || (en && z === "easy")) r.zorluk = "easy";
+    else if (z === "orta" || (en && z === "medium")) r.zorluk = "medium";
+    else if (z === "zor" || (en && (z === "hard" || z === "difficult"))) r.zorluk = "hard";
   }
   if (!r.adet && !r.zorluk) return null;
   return testVar || fiil ? r : null;
 }
 
-/** "3. soruya git", "üçüncü soru" → 1 tabanlı soru numarası. */
-export function soruNoBul(metin: string): number | null {
-  const tok = temizle(normalize(metin)).split(" ").filter(Boolean);
-  if (!tok.some((t) => /^soru/.test(t))) return null;
+/** "3. soruya git", "üçüncü soru" / "go to question 3", "third question" → 1 tabanlı soru numarası. */
+export function soruNoBul(metin: string, lang: Dil = "tr"): number | null {
+  const en = lang === "en";
+  const tok = temizle(normalize(metin), lang).split(" ").filter(Boolean);
+  if (!tok.some((t) => (en ? /^question/ : /^soru/).test(t))) return null;
+  const sira = en ? SIRA_KELIME_EN : SIRA_KELIME, sayi = en ? SAYI_KELIME_EN : SAYI_KELIME;
   for (const t of tok) {
     if (/^\d+$/.test(t)) { const n = Number(t); if (n >= 1 && n <= 30) return n; }
-    if (SIRA_KELIME[t]) return SIRA_KELIME[t];
-    if (SAYI_KELIME[t]) return SAYI_KELIME[t];
+    if (sira[t]) return sira[t];
+    if (sayi[t]) return sayi[t];
   }
   return null;
 }

@@ -28,12 +28,14 @@ class FakeSTT:
     def __init__(self):
         self.calls: list[tuple[str, str, int]] = []
         self.hints: list[list[str] | None] = []
+        self.languages: list[str | None] = []
         self.text = "özetle"
         self.fail = False
 
-    async def transcribe(self, audio, filename, mime, hints=None):
+    async def transcribe(self, audio, filename, mime, hints=None, language=None):
         self.calls.append((filename, mime, len(audio)))
         self.hints.append(hints)
+        self.languages.append(language)
         if self.fail:
             raise STTError("gizli-anahtar-sk-123 hesap bakiyesi yetersiz")
         return self.text

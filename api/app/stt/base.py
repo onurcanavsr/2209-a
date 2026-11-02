@@ -9,6 +9,7 @@ class STTProvider(ABC):
     name = "base"
 
     @abstractmethod
-    async def transcribe(self, audio: bytes, filename: str, mime: str, hints: list[str] | None = None) -> str:
-        """Kısa bir ses kaydını (komut) Türkçe metne çevirir. Konuşma yoksa boş metin döner.
-        `hints`: kullanıcının kendi belge başlıkları gibi tanımayı kolaylaştıran özel adlar."""
+    async def transcribe(self, audio: bytes, filename: str, mime: str, hints: list[str] | None = None,
+                         language: str | None = None) -> str:
+        """Kısa bir ses kaydını (komut) metne çevirir (language: 'tr' | 'en'; verilmezse sağlayıcının varsayılanı).
+        Konuşma yoksa boş metin döner. `hints`: kullanıcının kendi belge başlıkları gibi tanımayı kolaylaştıran özel adlar."""

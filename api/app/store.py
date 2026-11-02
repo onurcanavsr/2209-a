@@ -111,22 +111,27 @@ class SupabaseStore:
 
 
     # ---- özetler (Faz 3). Sahiplik, çağıran tarafından get_document(doc_id, user_id) ile doğrulanır ----
-    async def get_summary(self, doc_id: str, level: str) -> dict | None:
+    async def get_summary(self, doc_id: str, level: str, lang: str = "tr") -> dict | None:
         r = await self._c().get("/summaries", params={
-            "select": "level,content,model,created_at", "document_id": f"eq.{doc_id}", "level": f"eq.{level}", "limit": "1"})
+            "select": "level,language,content,model,created_at", "document_id": f"eq.{doc_id}", "level": f"eq.{level}",
+            "language": f"eq.{lang}", "limit": "1"})
         self._check(r)
         rows = r.json()
         return rows[0] if rows else None
 
-    async def list_summaries(self, doc_id: str) -> list[dict]:
-        r = await self._c().get("/summaries", params={
-            "select": "level,content,model,created_at", "document_id": f"eq.{doc_id}"})
+    async def list_summaries(self, doc_id: str, lang: str | None = None) -> list[dict]:
+        """lang verilirse yalnızca o dildeki özetler; verilmezse tüm diller."""
+        params = {"select": "level,language,content,model,created_at", "document_id": f"eq.{doc_id}"}
+        if lang:
+            params["language"] = f"eq.{lang}"
+        r = await self._c().get("/summaries", params=params)
         self._check(r)
         return r.json()
 
-    async def save_summary(self, doc_id: str, level: str, content: str, model: str) -> None:
-        r = await self._c().post("/summaries", params={"on_conflict": "document_id,level"},
-                                 json={"document_id": doc_id, "level": level, "content": content, "model": model},
+    async def save_summary(self, doc_id: str, level: str, content: str, model: str, lang: str = "tr") -> None:
+        r = await self._c().post("/summaries", params={"on_conflict": "document_id,level,language"},
+                                 json={"document_id": doc_id, "level": level, "language": lang, "content": content,
+                                       "model": model},
                                  headers={"Prefer": "resolution=merge-duplicates"})
         self._check(r)
 

@@ -2,8 +2,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useT } from "@/lib/i18n/client";
 
 export default function ParolaSifirla() {
+  const t = useT();
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -21,20 +23,20 @@ export default function ParolaSifirla() {
   if (done)
     return (
       <div className="card login" role="status">
-        <h1>E-postanızı kontrol edin</h1>
-        <p>Bu e-posta ile kayıtlı bir hesap varsa parola yenileme bağlantısı gönderildi.</p>
-        <p><Link href="/giris">Giriş sayfasına dön</Link></p>
+        <h1>{t("E-postanızı kontrol edin")}</h1>
+        <p>{t("Bu e-posta ile kayıtlı bir hesap varsa parola yenileme bağlantısı gönderildi.")}</p>
+        <p><Link href="/giris">{t("Giriş sayfasına dön")}</Link></p>
       </div>
     );
 
   return (
     <form className="card login" onSubmit={onSubmit}>
-      <h1>Parolamı unuttum</h1>
-      <p>E-posta adresinizi yazın, size yenileme bağlantısı gönderelim.</p>
-      <label htmlFor="email">E-posta</label>
+      <h1>{t("Parolamı unuttum")}</h1>
+      <p>{t("E-posta adresinizi yazın, size yenileme bağlantısı gönderelim.")}</p>
+      <label htmlFor="email">{t("E-posta")}</label>
       <input id="email" name="email" type="email" autoComplete="email" required />
-      <button className="btn" disabled={busy}>{busy ? "Gönderiliyor…" : "Bağlantı gönder"}</button>
-      <p className="links"><Link href="/giris">Girişe dön</Link></p>
+      <button className="btn" disabled={busy}>{busy ? t("Gönderiliyor…") : t("Bağlantı gönder")}</button>
+      <p className="links"><Link href="/giris">{t("Girişe dön")}</Link></p>
     </form>
   );
 }

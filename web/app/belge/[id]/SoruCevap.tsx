@@ -5,6 +5,7 @@ import { Ozet } from "@/lib/markdown";
 import { dikteIste, onayIste, sesDuyur } from "@/lib/ses/kayit";
 import { istekAl } from "@/lib/ses/bolumGecis";
 import { useSesKomutlari } from "@/lib/ses/useSesKomutlari";
+import { useT } from "@/lib/i18n/client";
 
 type Kaynak = { position: number; snippet: string };
 type Kayit = { id?: string; question: string; answer: string; sources: Kaynak[] };
@@ -13,6 +14,7 @@ type Kayit = { id?: string; question: string; answer: string; sources: Kaynak[] 
 const duzMetin = (s: string) => s.replace(/[*_#`>|]/g, " ").replace(/\s+/g, " ").trim();
 
 export default function SoruCevap({ docId }: { docId: string }) {
+  const t = useT();
   const [gecmis, setGecmis] = useState<Kayit[]>([]);
   const [soru, setSoru] = useState("");
   const [bekleyenSoru, setBekleyenSoru] = useState("");
@@ -44,7 +46,7 @@ export default function SoruCevap({ docId }: { docId: string }) {
   async function gonder(metin: string, sesli = false) {
     if (metin.length < 3 || calisiyor) return;
     setHata(""); setAkan(""); setBekleyenSoru(metin); setCalisiyor(true);
-    setDurum("Cevap hazırlanıyor…");
+    setDurum(t("Cevap hazırlanıyor…"));
     let tam = "";
     let kaynaklar: Kaynak[] = [];
     let bitti = false;
@@ -55,7 +57,7 @@ export default function SoruCevap({ docId }: { docId: string }) {
         body: JSON.stringify({ question: metin }),
       });
       if (!r.ok || !r.body) {
-        setHata(await hataMesaji(r, "Cevap alınamadı.")); setDurum(""); setCalisiyor(false); setBekleyenSoru("");
+        setHata(await hataMesaji(r, t("Cevap alınamadı."))); setDurum(""); setCalisiyor(false); setBekleyenSoru("");
         return;
       }
       const reader = r.body.getReader();
@@ -78,23 +80,23 @@ export default function SoruCevap({ docId }: { docId: string }) {
       if (bitti && tam.trim()) {
         setGecmis((g) => [...g, { question: metin, answer: tam.trim(), sources: kaynaklar }]);
         setSoru(""); setAkan("");
-        setDurum("Cevap hazır.");
-        if (sesli) sesDuyur(`Cevap hazır. ${duzMetin(tam)}`);
+        setDurum(t("Cevap hazır."));
+        if (sesli) sesDuyur(t("Cevap hazır. {cevap}", { cevap: duzMetin(tam) }));
         setTimeout(() => sonCevap.current?.focus(), 50);
       } else if (!bitti && !tam) {
-        setHata((h) => h || "Cevap alınamadı. Lütfen tekrar deneyin.");
+        setHata((h) => h || t("Cevap alınamadı. Lütfen tekrar deneyin."));
       }
     } catch {
-      setHata("Sunucuya ulaşılamadı. Lütfen tekrar deneyin."); setDurum("");
+      setHata(t("Sunucuya ulaşılamadı. Lütfen tekrar deneyin.")); setDurum("");
     }
     setBekleyenSoru(""); setCalisiyor(false);
   }
 
   async function temizle(onayli = false) {
-    if (!onayli && !window.confirm("Bu belgedeki soru-cevap geçmişi silinsin mi?")) return;
+    if (!onayli && !window.confirm(t("Bu belgedeki soru-cevap geçmişi silinsin mi?"))) return;
     const r = await apiFetch(`/api/documents/${docId}/qa`, { method: "DELETE" });
-    if (r.ok) { setGecmis([]); setDurum("Geçmiş silindi."); }
-    else setHata(await hataMesaji(r, "Geçmiş silinemedi."));
+    if (r.ok) { setGecmis([]); setDurum(t("Geçmiş silindi.")); }
+    else setHata(await hataMesaji(r, t("Geçmiş silinemedi.")));
   }
 
   // ---- Sesli komutlar ----
@@ -102,36 +104,36 @@ export default function SoruCevap({ docId }: { docId: string }) {
     "soru.sor": () => {
       if (calisiyor) return false;
       // Mikrofon kendiliğinden yeniden açılır; serbest cümle komut olarak yorumlanmaz, soru olarak gönderilir
-      dikteIste({ istem: "Sorunuzu söyleyin.", uygula: async (m) => { setSoru(m); await gonder(m, true); } });
+      dikteIste({ istem: t("Sorunuzu söyleyin."), uygula: async (m) => { setSoru(m); await gonder(m, true); } });
     },
     ...(gecmis.length > 0 ? {
       "cevap.oku": () => {
         const k = gecmis[gecmis.length - 1];
-        sesDuyur(`Soru: ${k.question}. Cevap: ${duzMetin(k.answer)}`);
+        sesDuyur(t("Soru: {soru}. Cevap: {cevap}", { soru: k.question, cevap: duzMetin(k.answer) }));
       },
       "qa.temizle": () => {
         if (calisiyor) return false;
-        onayIste("Soru geçmişi silinsin mi? Evet ya da hayır deyin.", () => temizle(true));
+        onayIste(t("Soru geçmişi silinsin mi? Evet ya da hayır deyin."), () => temizle(true));
       },
     } : {}),
   });
 
   return (
     <section aria-labelledby="qa-baslik" className="panel">
-      <h2 id="qa-baslik" className="panel-h">Belgeye Soru Sor</h2>
-      <p className="panel-alt">Belge içeriğiyle ilgili merak ettiğiniz soruları sorun. Cevaplar yalnızca bu belgeye dayanır.</p>
+      <h2 id="qa-baslik" className="panel-h">{t("Belgeye Soru Sor")}</h2>
+      <p className="panel-alt">{t("Belge içeriğiyle ilgili merak ettiğiniz soruları sorun. Cevaplar yalnızca bu belgeye dayanır.")}</p>
       <form onSubmit={sor}>
-        <label htmlFor="qa-soru" style={{ marginTop: 0 }}>Sorunuz</label>
+        <label htmlFor="qa-soru" style={{ marginTop: 0 }}>{t("Sorunuz")}</label>
         <input id="qa-soru" type="text" value={soru} maxLength={500} disabled={calisiyor}
           onChange={(e) => setSoru(e.target.value)} aria-describedby="qa-ipucu"
-          placeholder="Örn. Mitokondrinin görevi nedir?" />
-        <p id="qa-ipucu" className="hint">Cevaplar yalnızca bu belgeye dayanır; belgede yoksa bunu söyler.</p>
+          placeholder={t("Örn. Mitokondrinin görevi nedir?")} />
+        <p id="qa-ipucu" className="hint">{t("Cevaplar yalnızca bu belgeye dayanır; belgede yoksa bunu söyler.")}</p>
         <div className="row" style={{ marginTop: 12 }}>
           <button type="submit" className="btn" style={{ width: "auto", margin: 0 }} disabled={calisiyor || soru.trim().length < 3}>
-            {calisiyor ? "Cevaplanıyor…" : "Sor"}
+            {calisiyor ? t("Cevaplanıyor…") : t("Sor")}
           </button>
           {gecmis.length > 0 && !calisiyor && (
-            <button type="button" className="btn sec" onClick={() => temizle()}>Geçmişi temizle</button>
+            <button type="button" className="btn sec" onClick={() => temizle()}>{t("Geçmişi temizle")}</button>
           )}
         </div>
       </form>
@@ -141,7 +143,7 @@ export default function SoruCevap({ docId }: { docId: string }) {
 
       {calisiyor && (
         <div className="qa-item" aria-busy="true">
-          <h3 style={{ fontSize: "1rem", margin: "0 0 6px" }}>Soru: {bekleyenSoru}</h3>
+          <h3 style={{ fontSize: "1rem", margin: "0 0 6px" }}>{t("Soru:")} {bekleyenSoru}</h3>
           <div className="ozet"><Ozet text={akan || "…"} /></div>
         </div>
       )}
@@ -149,20 +151,20 @@ export default function SoruCevap({ docId }: { docId: string }) {
       {[...gecmis].reverse().map((k, i) => (
         <article key={k.id ?? `${gecmis.length - i}`} className="qa-item"
           ref={i === 0 ? sonCevap : undefined} tabIndex={i === 0 ? -1 : undefined}
-          aria-label={`Soru: ${k.question}`}>
-          <h3 style={{ fontSize: "1rem", margin: "0 0 6px" }}>Soru: {k.question}</h3>
+          aria-label={t("Soru: {soru}", { soru: k.question })}>
+          <h3 style={{ fontSize: "1rem", margin: "0 0 6px" }}>{t("Soru:")} {k.question}</h3>
           <div className="ozet"><Ozet text={k.answer} /></div>
           {k.sources?.length > 0 && (
             <details>
-              <summary>Dayanılan bölümler ({k.sources.length})</summary>
+              <summary>{t("Dayanılan bölümler ({n})", { n: k.sources.length })}</summary>
               <ul>
-                {k.sources.map((s) => <li key={s.position}><strong>Bölüm {s.position}:</strong> {s.snippet}</li>)}
+                {k.sources.map((s) => <li key={s.position}><strong>{t("Bölüm {n}:", { n: s.position })}</strong> {s.snippet}</li>)}
               </ul>
             </details>
           )}
         </article>
       ))}
-      <p className="hint">Cevaplar yapay zekâ tarafından üretilir ve hata içerebilir; önemli konularda belge metnini kontrol edin.</p>
+      <p className="hint">{t("Cevaplar yapay zekâ tarafından üretilir ve hata içerebilir; önemli konularda belge metnini kontrol edin.")}</p>
     </section>
   );
 }

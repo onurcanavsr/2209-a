@@ -1,7 +1,7 @@
 /** Çalışma alanında "staj raporunu aç" gibi sözlerden belgeyi bulur. Saf fonksiyon: birim testle denenir.
  *  Dosya adları genelde "Staj_Raporu_Final-2.docx" gibidir; uzantı ve ayraçlar atılır, sözcük sözcük
  *  yaklaşık eşleştirilir ("raporunu" ≈ "rapor"). */
-import { benzerlik, normalize } from "./komutlar";
+import { benzerlik, normalize, type Dil } from "./komutlar";
 
 export type BelgeAday = { id: string; title: string };
 export type BelgeSonuc<T extends BelgeAday = BelgeAday> =
@@ -16,6 +16,12 @@ const DOLGU = new Set([
   "sil", "silin", "silinsin", "kaldir", "kaldirin",
 ]);
 const SILME = /^(sil|silin|silinsin|kaldir|kaldirin)/;
+const SILME_EN = /^(delete|remove|erase|trash)/;
+const DOLGU_EN = new Set([
+  "open", "go", "show", "get", "document", "doc", "file", "please", "now", "me", "the", "my", "called", "named", "that", "one", "other",
+  "it", "this", "just", "ok", "okay", "hey", "delete", "remove", "erase", "to", "up", "for", "load", "pull",
+]);
+const SIRA_EN: Record<string, number> = { first: 0, second: 1, third: 2, fourth: 3, fifth: 4, sixth: 5, seventh: 6, eighth: 7, ninth: 8, tenth: 9 };
 const SIRA: Record<string, number> = {
   birinci: 0, ilk: 0, ikinci: 1, ucuncu: 2, dorduncu: 3, besinci: 4, altinci: 5, yedinci: 6, sekizinci: 7, dokuzuncu: 8, onuncu: 9,
 };
@@ -25,8 +31,9 @@ export function baslikOku(title: string): string {
   return title.replace(/\.(pdf|docx?|pptx?)$/i, "").replace(/[_\-.]+/g, " ").replace(/\s+/g, " ").trim();
 }
 
-export function belgeFiil(metin: string): "sil" | "ac" {
-  return normalize(metin).split(" ").some((t) => SILME.test(t)) ? "sil" : "ac";
+export function belgeFiil(metin: string, lang: Dil = "tr"): "sil" | "ac" {
+  const rx = lang === "en" ? SILME_EN : SILME;
+  return normalize(metin).split(" ").some((t) => rx.test(t)) ? "sil" : "ac";
 }
 
 function tokenSkor(h: string, t: string): number {
@@ -36,19 +43,21 @@ function tokenSkor(h: string, t: string): number {
   return s;
 }
 
-export function belgeAra<T extends BelgeAday>(metin: string, belgeler: T[]): BelgeSonuc<T> {
+export function belgeAra<T extends BelgeAday>(metin: string, belgeler: T[], lang: Dil = "tr"): BelgeSonuc<T> {
   if (belgeler.length === 0) return { durum: "yok" };
+  const en = lang === "en";
+  const dolgu = en ? DOLGU_EN : DOLGU, siraTablo = en ? SIRA_EN : SIRA;
   const tum = normalize(metin).split(" ").filter(Boolean);
 
   // "ikinci belge", "ilk dosya", "son belge" — adı olmayan/zor dosyalar için sıra numarasıyla
-  const belgeSozu = tum.some((t) => /^(belge|dosya)/.test(t));
+  const belgeSozu = tum.some((t) => (en ? /^(document|doc|file)/ : /^(belge|dosya)/).test(t));
   if (belgeSozu) {
-    const sira = tum.find((t) => t in SIRA);
-    if (sira !== undefined && SIRA[sira] < belgeler.length) return { durum: "ok", belge: belgeler[SIRA[sira]] };
-    if (tum.some((t) => t === "son" || t === "sonuncu")) return { durum: "ok", belge: belgeler[belgeler.length - 1] };
+    const sira = tum.find((t) => t in siraTablo);
+    if (sira !== undefined && siraTablo[sira] < belgeler.length) return { durum: "ok", belge: belgeler[siraTablo[sira]] };
+    if (tum.some((t) => t === "son" || t === "sonuncu" || t === "last" || t === "latest")) return { durum: "ok", belge: belgeler[belgeler.length - 1] };
   }
 
-  const heard = tum.filter((t) => !DOLGU.has(t) && (t.length >= 2 || /^\d$/.test(t)));
+  const heard = tum.filter((t) => !dolgu.has(t) && (t.length >= 2 || /^\d$/.test(t)));
   if (heard.length === 0) return { durum: "yok" };
 
   const adaylar = belgeler.map((b) => {

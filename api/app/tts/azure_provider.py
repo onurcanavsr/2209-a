@@ -15,7 +15,8 @@ class AzureTTS(TTSProvider):
         self.key, self.region, self.transport = key, region, transport
 
     async def synthesize(self, text: str, voice: str) -> bytes:
-        ssml = (f"<speak version='1.0' xml:lang='tr-TR'><voice name='{escape(voice)}'>"
+        locale = "-".join(voice.split("-")[:2]) if re.fullmatch(r"[a-z]{2,3}-[A-Z]{2}-[A-Za-z0-9]+", voice) else "tr-TR"
+        ssml = (f"<speak version='1.0' xml:lang='{locale}'><voice name='{escape(voice)}'>"
                 f"{escape(text)}</voice></speak>")
         url = f"https://{self.region}.tts.speech.microsoft.com/cognitiveservices/v1"
         headers = {"Ocp-Apim-Subscription-Key": self.key, "Content-Type": "application/ssml+xml",

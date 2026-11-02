@@ -1,3 +1,5 @@
+import { tNow } from "../i18n/current";
+
 /** Mikrofon kaydı: getUserMedia + MediaRecorder tüm güncel tarayıcılarda (Chrome, Edge, Brave, Opera, Firefox, Safari)
  *  aynı çalışır. Konuşmanın bitişi (sessizlik) burada, ses seviyesinden algılanır; tanıma sunucuda yapılır. */
 
@@ -36,7 +38,7 @@ export type KayitSecenek = {
 export async function kayitYap(o: KayitSecenek = {}): Promise<KayitSonucu> {
   const { maxMs = 8000, sessizlikMs = 1200, ilkKonusmaMs = 5000 } = o;
   if (!desteklenir()) {
-    throw new MikrofonHatasi("desteklenmiyor", "Bu tarayıcı veya bağlantı mikrofon kaydını desteklemiyor (güvenli bağlantı gerekir).");
+    throw new MikrofonHatasi("desteklenmiyor", tNow("Bu tarayıcı veya bağlantı mikrofon kaydını desteklemiyor (güvenli bağlantı gerekir)."));
   }
   let stream: MediaStream;
   try {
@@ -45,9 +47,9 @@ export async function kayitYap(o: KayitSecenek = {}): Promise<KayitSonucu> {
     });
   } catch (e) {
     const ad = (e as DOMException).name;
-    if (ad === "NotAllowedError" || ad === "SecurityError") throw new MikrofonHatasi("izin", "Mikrofon izni verilmedi. Tarayıcının adres çubuğundan mikrofona izin verin.");
-    if (ad === "NotFoundError" || ad === "OverconstrainedError") throw new MikrofonHatasi("yok", "Mikrofon bulunamadı.");
-    throw new MikrofonHatasi("diger", "Mikrofon açılamadı.");
+    if (ad === "NotAllowedError" || ad === "SecurityError") throw new MikrofonHatasi("izin", tNow("Mikrofon izni verilmedi. Tarayıcının adres çubuğundan mikrofona izin verin."));
+    if (ad === "NotFoundError" || ad === "OverconstrainedError") throw new MikrofonHatasi("yok", tNow("Mikrofon bulunamadı."));
+    throw new MikrofonHatasi("diger", tNow("Mikrofon açılamadı."));
   }
 
   const AC: typeof AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;

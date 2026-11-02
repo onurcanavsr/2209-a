@@ -22,7 +22,8 @@ class Settings(BaseSettings):
     daily_card_limit: int = 10            # kullanıcı başına günlük yapay zekâ ile kart üretimi
     youtube_proxy_url: str = ""            # YouTube sunucu IP'sini engellerse: http://kullanici:parola@host:port (boşsa doğrudan)
     tts_provider: str = "edge"            # "edge" (ücretsiz, resmî olmayan) | "azure" (resmî)
-    tts_voice: str = "tr-TR-EmelNeural"
+    tts_voice: str = "tr-TR-EmelNeural"      # Türkçe varsayılan ses
+    tts_voice_en: str = "en-US-AriaNeural"   # İngilizce varsayılan ses
     azure_speech_key: str = ""
     azure_speech_region: str = "westeurope"
     audio_dir: str = "/data/audio"
@@ -40,7 +41,7 @@ class Settings(BaseSettings):
     stt_provider: str = "openai"
     openai_api_key: str = ""
     stt_model: str = "gpt-transcribe"
-    stt_language: str = "tr"
+    stt_language: str = "tr"              # istekte dil verilmezse kullanılan dil (arayüz dili istekle gelir: tr | en)
     stt_hints: bool = True                # komut sözcüklerini tanıyıcıya ipucu olarak ver
     stt_timeout_s: float = 20.0
     stt_max_bytes: int = 400_000          # tek komut kaydı için üst sınır (yaklaşık 20-40 sn ses)
@@ -54,7 +55,7 @@ class Settings(BaseSettings):
     cost_llm_fast_in_per_mtok: float = 1.0
     cost_llm_fast_out_per_mtok: float = 5.0
     cost_tts_per_mchar: float = 15.0      # USD / milyon karakter, yalnızca TTS_PROVIDER=azure iken (edge ücretsiz sayılır)
-    cost_chars_per_token: float = 3.0     # Türkçe için kaba oran; gerçek faturayla karşılaştırıp ayarlayın
+    cost_chars_per_token: float = 3.0     # Türkçe için kaba oran (İngilizce ~4; yine de gerçek faturayla karşılaştırıp ayarlayın); gerçek faturayla karşılaştırıp ayarlayın
 
 
 @lru_cache

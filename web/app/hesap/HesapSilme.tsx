@@ -2,8 +2,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useT } from "@/lib/i18n/client";
+import { currentLang } from "@/lib/i18n/current";
 
 export default function HesapSilme() {
+  const t = useT();
   const router = useRouter();
   const [onay, setOnay] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -17,7 +20,7 @@ export default function HesapSilme() {
     try {
       const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { Authorization: `Bearer ${session.access_token}`, "X-Lang": currentLang() },
       });
       if (r.ok) {
         await sb.auth.signOut();
@@ -25,22 +28,22 @@ export default function HesapSilme() {
         return;
       }
       const j = await r.json().catch(() => ({}));
-      setError(j.detail || "Hesap silinemedi. Lütfen daha sonra tekrar deneyin.");
+      setError(j.detail || t("Hesap silinemedi. Lütfen daha sonra tekrar deneyin."));
     } catch {
-      setError("Sunucuya ulaşılamadı. Lütfen daha sonra tekrar deneyin.");
+      setError(t("Sunucuya ulaşılamadı. Lütfen daha sonra tekrar deneyin."));
     }
     setBusy(false);
   }
 
   return (
     <div>
-      <p>Hesabınız ve yüklediğiniz tüm belgeler, özetler, ses dosyaları ve sınav sonuçlarınız kalıcı olarak silinir. Bu işlem geri alınamaz.</p>
+      <p>{t("Hesabınız ve yüklediğiniz tüm belgeler, özetler, ses dosyaları ve sınav sonuçlarınız kalıcı olarak silinir. Bu işlem geri alınamaz.")}</p>
       <label className="check" htmlFor="sil-onay">
         <input id="sil-onay" type="checkbox" checked={onay} onChange={(e) => setOnay(e.target.checked)} />
-        <span>Hesabımı ve tüm verilerimi kalıcı olarak silmek istediğimi onaylıyorum.</span>
+        <span>{t("Hesabımı ve tüm verilerimi kalıcı olarak silmek istediğimi onaylıyorum.")}</span>
       </label>
       <div role="alert" aria-live="assertive">{error && <p className="msg err">{error}</p>}</div>
-      <p><button type="button" className="btn danger" style={{ width: "auto" }} disabled={!onay || busy} onClick={sil}>{busy ? "Siliniyor…" : "Hesabımı sil"}</button></p>
+      <p><button type="button" className="btn danger" style={{ width: "auto" }} disabled={!onay || busy} onClick={sil}>{busy ? t("Siliniyor…") : t("Hesabımı sil")}</button></p>
     </div>
   );
 }

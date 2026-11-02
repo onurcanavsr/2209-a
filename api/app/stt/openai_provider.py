@@ -18,21 +18,23 @@ class OpenAISTT(STTProvider):
         self.model, self.language, self.hints = model, language, hints
         self.client = AsyncOpenAI(api_key=api_key, timeout=timeout, max_retries=1, http_client=http_client)
 
-    def _variants(self, hints: list[str] | None = None) -> list[dict]:
+    def _variants(self, hints: list[str] | None = None, language: str | None = None) -> list[dict]:
         """Sırayla denenir. Yeni modellerin ipucu alanlarını (keywords/languages) kabul etmemesi durumunda
         daha sade isteğe düşülür; böylece parametre uyumsuzluğu özelliği tümüyle bozmaz."""
+        lang = language if language in ("tr", "en") else self.language
         v: list[dict] = []
         if self.hints:
-            prompt = prompt_for(hints)
-            v.append({"prompt": prompt, "extra_body": {"keywords": birlestir(hints), "languages": [self.language]}})
-            v.append({"prompt": prompt, "language": self.language})
-        v.append({"language": self.language})
+            prompt = prompt_for(hints, lang)
+            v.append({"prompt": prompt, "extra_body": {"keywords": birlestir(hints, lang), "languages": [lang]}})
+            v.append({"prompt": prompt, "language": lang})
+        v.append({"language": lang})
         return v
 
-    async def transcribe(self, audio: bytes, filename: str, mime: str, hints: list[str] | None = None) -> str:
+    async def transcribe(self, audio: bytes, filename: str, mime: str, hints: list[str] | None = None,
+                         language: str | None = None) -> str:
         import openai
         last: Exception | None = None
-        for extra in self._variants(hints):
+        for extra in self._variants(hints, language):
             try:
                 r = await self.client.audio.transcriptions.create(
                     model=self.model, file=(filename, audio, mime), **extra)

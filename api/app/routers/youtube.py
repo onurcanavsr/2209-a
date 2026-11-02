@@ -11,6 +11,7 @@ from starlette.concurrency import run_in_threadpool
 
 from ..auth import CurrentUser, get_current_user
 from ..config import get_settings
+from ..i18n import Lang, get_lang
 from ..store import DuplicateError, get_store
 from ..youtube import (LANG_ADI, YouTubeError, fetch_title, fetch_transcript, sure_yazi, video_id_from_url)
 from .documents import _fail, _public
@@ -83,7 +84,8 @@ async def _process(store, user_id: str, doc_id: str, video_id: str, fetch, get_t
 
 @router.post("/youtube", status_code=status.HTTP_202_ACCEPTED)
 async def add_youtube(body: YouTubeIn, background: BackgroundTasks, user: CurrentUser = Depends(get_current_user),
-                      store=Depends(get_store), fetch=Depends(transcript_fetcher), get_title=Depends(title_fetcher)):
+                      store=Depends(get_store), fetch=Depends(transcript_fetcher), get_title=Depends(title_fetcher),
+                      lang: Lang = Depends(get_lang)):
     try:
         video_id = video_id_from_url(body.url)
     except YouTubeError as e:
@@ -93,7 +95,7 @@ async def add_youtube(body: YouTubeIn, background: BackgroundTasks, user: Curren
     existing = await store.find_by_hash(user.id, h)
     if existing:
         if existing["status"] != "failed":    # hazır/işleniyor: yeniden çekme yok
-            return JSONResponse({**_public(existing), "cached": True}, status_code=200)
+            return JSONResponse({**_public(existing, lang), "cached": True}, status_code=200)
         await store.delete_document(existing["id"], user.id)   # başarısız olan yeniden denensin
 
     s = get_settings()
@@ -107,8 +109,8 @@ async def add_youtube(body: YouTubeIn, background: BackgroundTasks, user: Curren
     except DuplicateError:
         again = await store.find_by_hash(user.id, h)
         if again:
-            return JSONResponse({**_public(again), "cached": True}, status_code=200)
+            return JSONResponse({**_public(again, lang), "cached": True}, status_code=200)
         raise
     await store.log_usage(user.id, "upload", 0)
     background.add_task(_process, store, user.id, doc["id"], video_id, fetch, get_title)
-    return {**_public(doc), "cached": False}
+    return {**_public(doc, lang), "cached": False}

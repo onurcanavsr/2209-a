@@ -11,8 +11,9 @@ from pydantic import BaseModel, Field
 
 from ..auth import CurrentUser, get_current_user
 from ..config import get_settings
+from ..i18n import Lang, get_lang
 from ..llm import model_name
-from ..quiz import SYSTEM, QuizParseError, build_prompt, grade, parse_quiz, public_questions
+from ..quiz import SYSTEMS, QuizParseError, build_prompt, grade, parse_quiz, public_questions
 from ..store import get_store
 from .summaries import _owned_doc, llm_factory
 
@@ -63,7 +64,7 @@ async def list_quizzes(doc_id: str, user: CurrentUser = Depends(get_current_user
 
 @router.post("/documents/{doc_id}/quizzes", status_code=status.HTTP_201_CREATED)
 async def create_quiz(doc_id: str, body: QuizIn, user: CurrentUser = Depends(get_current_user),
-                      store=Depends(get_store), llm=Depends(llm_factory)):
+                      store=Depends(get_store), llm=Depends(llm_factory), lang: Lang = Depends(get_lang)):
     doc = await _owned_doc(store, doc_id, user.id)
     if doc["status"] != "ready" or not doc.get("raw_text"):
         raise HTTPException(status.HTTP_409_CONFLICT, "Belge henüz hazır değil veya metni çıkarılamadı.")
@@ -85,12 +86,12 @@ async def create_quiz(doc_id: str, body: QuizIn, user: CurrentUser = Depends(get
     _inflight[key] = time.monotonic()
     try:
         await store.log_usage(user.id, "quiz", len(doc["raw_text"]))
-        prompt = build_prompt(doc["title"], doc["raw_text"], body.count, body.difficulty)
+        prompt = build_prompt(doc["title"], doc["raw_text"], body.count, body.difficulty, lang)
         questions = None
         for attempt in range(ATTEMPTS):
             try:
-                raw = await asyncio.wait_for(llm("main").complete(SYSTEM, prompt, max_tokens=4500), GENERATE_TIMEOUT)
-                questions = parse_quiz(raw, body.count)
+                raw = await asyncio.wait_for(llm("main").complete(SYSTEMS[lang], prompt, max_tokens=4500), GENERATE_TIMEOUT)
+                questions = parse_quiz(raw, body.count, lang=lang)
                 break
             except QuizParseError as e:
                 log.warning("Test çıktısı geçersiz (deneme %d, %s): %s", attempt + 1, doc["id"], e)

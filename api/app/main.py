@@ -3,13 +3,16 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import audio_cache
 from .active_guard import ACTIVE_CACHE, ActiveGuard
 from .auth import decode_token
 from .config import get_settings
+from .i18n import lang_from_request, translate
 from .routers import admin, audio, documents, me, qa, quiz, study, summaries, voice, youtube
 from .store import StoreError, get_store
 
@@ -29,7 +32,7 @@ async def lifespan(app: FastAPI):
     await get_store().close()
 
 
-app = FastAPI(title="Akademik Asistan API", version="0.4.0", lifespan=lifespan)
+app = FastAPI(title="Akademik Asistan API", version="0.5.0", lifespan=lifespan)
 
 async def _is_active(user_id: str) -> bool | None:
     p = await get_store().get_profile(user_id)
@@ -46,13 +49,22 @@ app.add_middleware(
     allow_origins=[o.strip() for o in s.cors_origins.split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-Lang"],
 )
+
+@app.exception_handler(StarletteHTTPException)
+async def localized_http_exception(request, exc):
+    """Kullanıcıya görünen hata iletilerini isteğin diline (X-Lang) çevirir; kodda iletiler Türkçe yazılır."""
+    if isinstance(exc.detail, str):
+        exc.detail = translate(exc.detail, lang_from_request(request))
+    return await http_exception_handler(request, exc)
+
 
 @app.exception_handler(StoreError)
 async def store_error_handler(request, exc):
     log.error("Veri katmanı hatası: %s", exc)
-    return JSONResponse({"detail": "Veritabanına şu anda ulaşılamıyor, lütfen tekrar deneyin."}, status_code=502)
+    msg = translate("Veritabanına şu anda ulaşılamıyor, lütfen tekrar deneyin.", lang_from_request(request))
+    return JSONResponse({"detail": msg}, status_code=502)
 
 
 # Her yeni router varsayılan olarak girişli olmalıdır (Depends(get_current_user)).

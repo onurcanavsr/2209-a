@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, hataMesaji } from "@/lib/api";
-import { KOMUTLAR, benzerlik, esles, normalize } from "@/lib/ses/komutlar";
-import { calistir, dikteAl, duyuruAyarla, duyuruSayaci, ipuclari, metinDene, mikrofonuBildir, uygunIdler } from "@/lib/ses/kayit";
+import { benzerlik, esles, komutlari, normalize } from "@/lib/ses/komutlar";
+import { useLang } from "@/lib/i18n/client";
+import { calistir, dikteAl, duyuruAyarla, duyuruSayaci, ipuclari, metinDene, mikrofonuBildir, sesDuyur, uygunIdler } from "@/lib/ses/kayit";
 import { useSesKomutlari } from "@/lib/ses/useSesKomutlari";
 import { desteklenir, kayitYap, MikrofonHatasi, uzanti } from "@/lib/ses/kaydedici";
 import { bip, bipHazirla } from "@/lib/ses/bip";
@@ -20,6 +21,7 @@ function ayarla(detail: { tema?: string; boyutFark?: number }) {
  *  komut çalışır. Ses tarayıcıda kaydedilip sunucuda tanındığı için Chrome, Edge, Brave, Opera, Firefox ve
  *  Safari'de aynı çalışır. */
 export default function SesDugmesi({ admin }: { admin: boolean }) {
+  const { lang, t } = useLang();
   const router = useRouter();
   const [hazir, setHazir] = useState(false);
   const [kalan, setKalan] = useState<number | null>(null);
@@ -62,7 +64,7 @@ export default function SesDugmesi({ admin }: { admin: boolean }) {
 
   function yardimAc() {
     const var_ = uygunIdler();
-    setYardim(KOMUTLAR.filter((k) => var_.has(k.id)).map((k) => ({ id: k.id, ad: k.ad, soyle: k.ifadeler[0] })));
+    setYardim(komutlari(lang).filter((k) => var_.has(k.id)).map((k) => ({ id: k.id, ad: k.ad, soyle: k.ifadeler[0] })));
     dlg.current?.showModal();
   }
 
@@ -79,35 +81,37 @@ export default function SesDugmesi({ admin }: { admin: boolean }) {
     "tema.acik": () => { ayarla({ tema: "light" }); },
     "tema.otomatik": () => { ayarla({ tema: "auto" }); },
     "yardim": () => { yardimAc(); },
+    "dil.tr": () => { window.dispatchEvent(new CustomEvent("araclar:dil", { detail: { lang: "tr" } })); sesDuyur("Türkçeye geçildi."); },
+    "dil.en": () => { window.dispatchEvent(new CustomEvent("araclar:dil", { detail: { lang: "en" } })); sesDuyur("Switched to English."); },
   });
 
   async function isle(metin: string) {
-    const s = esles(metin, uygunIdler());
+    const s = esles(metin, uygunIdler(), lang);
     const calis = async (id: string, ad: string) => {
       const once = duyuruSayaci();
       const tamam = await calistir(id);
       // Bileşen kendi sonucunu duyurduysa ("B şıkkı işaretlendi. Soru 3…") genel onay mesajı eklenmez
-      if (!tamam) duyur(`${ad} şu an kullanılamıyor.`);
-      else if (duyuruSayaci() === once) duyur(`Anlaşıldı: ${ad}.`);
+      if (!tamam) duyur(t("{ad} şu an kullanılamıyor.", { ad }));
+      else if (duyuruSayaci() === once) duyur(t("Anlaşıldı: {ad}.", { ad }));
     };
     // 1) birebir sabit komut  2) serbest cümle (belge adı, "3. soruya git" …)  3) yaklaşık sabit komut
     if (s.durum === "ok" && s.skor >= 0.999) return calis(s.id, s.ad);
     if (await metinDene(metin)) return;
     if (s.durum === "ok") return calis(s.id, s.ad);
-    if (s.durum === "belirsiz") duyur(`Emin olamadım. ${s.adaylar.join(" mı, ")} mı demek istediniz? Lütfen tekrar söyleyin.`);
-    else if (s.durum === "yok") duyur(`“${metin}” anlaşılamadı. Komutlar için “yardım” deyin.`);
-    else duyur("Ses algılanmadı. Tekrar deneyin.");
+    if (s.durum === "belirsiz") duyur(t("Emin olamadım. {liste} demek istediniz? Lütfen tekrar söyleyin.", { liste: lang === "en" ? s.adaylar.join(" or ") : s.adaylar.map((a) => a + " mı").join(", ") }));
+    else if (s.durum === "yok") duyur(t("“{metin}” anlaşılamadı. Komutlar için “yardım” deyin.", { metin }));
+    else duyur(t("Ses algılanmadı. Tekrar deneyin."));
   }
 
   /** Bir kayıt al, sunucuda metne çevir. Hata/boşlukta kullanıcıya bildirip null döner. */
   async function kaydetVeCoz(ac: AbortController): Promise<string | null> {
     await bip(880, 110);   // "dinliyorum" işareti; kayıt bundan SONRA başlar, bip kayda karışmaz
-    if (ac.signal.aborted) { duyur("Dinleme iptal edildi."); return null; }
+    if (ac.signal.aborted) { duyur(t("Dinleme iptal edildi.")); return null; }
     setDurum("dinliyor");  // dinlerken canlı bölge güncellenmez: ekran okuyucu mikrofona konuşmasın
     const k = await kayitYap({ signal: ac.signal });
-    if (k.neden === "iptal") { duyur("Dinleme iptal edildi."); return null; }
+    if (k.neden === "iptal") { duyur(t("Dinleme iptal edildi.")); return null; }
     await bip(520, 110);   // "bitti" işareti
-    if (!k.blob) { duyur("Ses algılanmadı. Tekrar deneyin."); return null; }
+    if (!k.blob) { duyur(t("Ses algılanmadı. Tekrar deneyin.")); return null; }
     setDurum("isleniyor");
     const fd = new FormData();
     fd.append("audio", k.blob, `komut.${uzanti(k.blob.type)}`);
@@ -115,7 +119,7 @@ export default function SesDugmesi({ admin }: { admin: boolean }) {
     const r = await apiFetch("/api/voice/transcribe", { method: "POST", body: fd });
     if (!r.ok) {
       if (r.status === 429) setKalan(0);
-      duyur(await hataMesaji(r, "Ses anlaşılamadı."));
+      duyur(await hataMesaji(r, t("Ses anlaşılamadı.")));
       return null;
     }
     const { text }: { text: string } = await r.json();
@@ -147,11 +151,11 @@ export default function SesDugmesi({ admin }: { admin: boolean }) {
         const yanit = await kaydetVeCoz(ac);
         if (yanit === null) break;
         // Mikrofon istemin kendisini yakaladıysa yanıt sayma
-        if (benzerlik(normalize(yanit), normalize(d.istem)) > 0.6) { duyur("Ses algılanmadı. Tekrar deneyin."); break; }
+        if (benzerlik(normalize(yanit), normalize(d.istem)) > 0.6) { duyur(t("Ses algılanmadı. Tekrar deneyin.")); break; }
         await d.uygula(yanit);
       }
     } catch (e) {
-      duyur(e instanceof MikrofonHatasi ? e.message : "Sesli komut çalışmadı. Lütfen tekrar deneyin.");
+      duyur(e instanceof MikrofonHatasi ? e.message : t("Sesli komut çalışmadı. Lütfen tekrar deneyin."));
     } finally {
       dikteAl();             // yarım kalmış takip isteği sonraki komuta sızmasın
       mesgul.current = false;
@@ -166,27 +170,26 @@ export default function SesDugmesi({ admin }: { admin: boolean }) {
       <button type="button" onClick={dinle} disabled={durum === "isleniyor" || bitti}
         className={`ses-btn${durum === "dinliyor" ? " dinliyor" : ""}`}>
         <span aria-hidden="true">🎤 </span>
-        {bitti ? "Sesli komut (günlük hak doldu)" : durum === "dinliyor" ? "Dinleniyor, iptal" : durum === "isleniyor" ? "Anlaşılıyor…" : "Sesli komut"}
+        {bitti ? t("Sesli komut (günlük hak doldu)") : durum === "dinliyor" ? t("Dinleniyor, iptal") : durum === "isleniyor" ? t("Anlaşılıyor…") : t("Sesli komut")}
       </button>
-      <button type="button" onClick={yardimAc}>Komutlar</button>
+      <button type="button" onClick={yardimAc}>{t("Komutlar")}</button>
 
       {/* Sonuç duyuruları: yalnızca dinleme BİTTİKTEN sonra güncellenir */}
       <div role="status" aria-live="polite" className="sr-only"><span key={duyuru.n}>{duyuru.metin}</span></div>
       {duyulan && <span className="ses-duyulan" aria-hidden="true">“{duyulan}”</span>}
 
       <dialog ref={dlg} aria-labelledby="ses-yardim-baslik" className="ses-dlg">
-        <h2 id="ses-yardim-baslik" style={{ marginTop: 0 }}>Sesli komutlar</h2>
-        <p>“Sesli komut” düğmesine basın, bip sesinden sonra komutu söyleyin. Konuşmanız bitince kendiliğinden algılanır; Esc ile iptal edebilirsiniz.
-          Okuma sürerken düğmeye basarsanız okuma duraklar, devam için “devam et” deyin.</p>
+        <h2 id="ses-yardim-baslik" style={{ marginTop: 0 }}>{t("Sesli komutlar")}</h2>
+        <p>{t("“Sesli komut” düğmesine basın, bip sesinden sonra komutu söyleyin. Konuşmanız bitince kendiliğinden algılanır; Esc ile iptal edebilirsiniz. Okuma sürerken düğmeye basarsanız okuma duraklar, devam için “devam et” deyin.")}</p>
         <ul>
           {yardim.map((k) => <li key={k.id}><strong>“{k.soyle}”</strong> — {k.ad}</li>)}
         </ul>
-        <p className="hint">Çalışma alanında bir belgeyi açmak için adını söylemeniz yeterli (ör. “staj raporu”); “ikinci belge” gibi sıra numarası da olur.
-          Silme gibi geri alınamaz işlemlerde sizden “evet” demeniz istenir.</p>
-        {kalan !== null && <p className="hint">Bugün kalan sesli komut hakkınız: {kalan}</p>}
-        <p className="hint">Ses sunucumuzda saklanmaz; komutun anlaşılması için bir yapay zekâ konuşma tanıma servisine iletilir.
-          Ayrıntı: <Link href="/aydinlatma">Aydınlatma Metni</Link>.</p>
-        <form method="dialog"><button className="btn sec">Kapat</button></form>
+        <p className="hint">{t("Çalışma alanında bir belgeyi açmak için adını söylemeniz yeterli (ör. “staj raporu”); “ikinci belge” gibi sıra numarası da olur. Silme gibi geri alınamaz işlemlerde sizden “evet” demeniz istenir.")}</p>
+        <p className="hint">{t("Komutları söylediğiniz dil, arayüz dilidir. Dili değiştirmek için üstteki dil seçiciyi ya da “İngilizceye geç” komutunu kullanın.")}</p>
+        {kalan !== null && <p className="hint">{t("Bugün kalan sesli komut hakkınız: {kalan}", { kalan })}</p>}
+        <p className="hint">{t("Ses sunucumuzda saklanmaz; komutun anlaşılması için bir yapay zekâ konuşma tanıma servisine iletilir.")}{" "}
+          {t("Ayrıntı:")} <Link href="/aydinlatma">{t("Aydınlatma Metni")}</Link>.</p>
+        <form method="dialog"><button className="btn sec">{t("Kapat")}</button></form>
       </dialog>
     </>
   );

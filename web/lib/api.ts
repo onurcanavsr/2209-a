@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { currentLang } from "@/lib/i18n/current";
 
 export type Belge = {
   id: string;
@@ -16,6 +17,7 @@ export type Belge = {
   text_preview?: string;
 };
 
+// Türkçe kaynak etiketler; ekranda t(DURUM[durum]) ile gösterilir
 export const DURUM: Record<Belge["status"], string> = {
   processing: "İşleniyor…",
   ready: "Hazır",
@@ -30,6 +32,7 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   }
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${session.access_token}`);
+  headers.set("X-Lang", currentLang());   // API hata iletilerini, özet/cevap/test dilini ve sesi buna göre seçer
   return fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, { ...init, headers });
 }
 

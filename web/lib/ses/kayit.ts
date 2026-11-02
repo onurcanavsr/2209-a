@@ -1,4 +1,5 @@
 import { evetHayir } from "./komutlar";
+import { currentLang, tNow } from "../i18n/current";
 
 /** Komut işleyici kayıt defteri. Bileşenler kendi komutlarını bağlar, ayrılınca siler; böylece
  *  bir komut yalnızca ilgili bileşen ekrandayken "uygun" sayılır (bağlama duyarlı). */
@@ -99,9 +100,9 @@ export function onayIste(istem: string, evet: () => void | Promise<void>): void 
   dikteIste({
     istem,
     uygula: async (m) => {
-      const c = evetHayir(m);
+      const c = evetHayir(m, currentLang());
       if (c === "evet") await evet();
-      else sesDuyur(c === "hayir" ? "Vazgeçildi." : "Yanıt anlaşılamadı, işlem yapılmadı.");
+      else sesDuyur(c === "hayir" ? tNow("Vazgeçildi.") : tNow("Yanıt anlaşılamadı, işlem yapılmadı."));
     },
   });
 }

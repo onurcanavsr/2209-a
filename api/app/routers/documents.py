@@ -11,6 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from .. import audio_cache
 from ..auth import CurrentUser, get_current_user
 from ..config import get_settings
+from ..i18n import Lang, get_lang, translate, translate_title
 from ..extract import ExtractError, UnsupportedFile, clean_filename, detect_kind, extract
 from ..store import DuplicateError, get_store
 
@@ -32,8 +33,15 @@ def _extract_limited(kind: str, data: bytes):
         return extract(kind, data)
 
 
-def _public(d: dict) -> dict:
-    return {k: v for k, v in d.items() if k not in ("raw_text", "user_id", "content_hash")}
+def _public(d: dict, lang: str = "tr") -> dict:
+    """İstemciye giden belge. Sistemin ürettiği başlık/not/hata iletileri istek diline çevrilir (kullanıcı dosya adları değil)."""
+    out = {k: v for k, v in d.items() if k not in ("raw_text", "user_id", "content_hash")}
+    if lang != "tr":
+        for k in ("note", "error"):
+            if out.get(k):
+                out[k] = translate(out[k], lang)
+        out["title"] = translate_title(out.get("title"), lang)
+    return out
 
 
 def _uuid(doc_id: str) -> str:
@@ -67,7 +75,7 @@ async def _fail(store, user_id: str, doc_id: str, msg: str) -> None:
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
 async def upload(background: BackgroundTasks, file: UploadFile = File(...),
-                 user: CurrentUser = Depends(get_current_user), store=Depends(get_store)):
+                 user: CurrentUser = Depends(get_current_user), store=Depends(get_store), lang: Lang = Depends(get_lang)):
     s = get_settings()
     title = clean_filename(file.filename)
     ext = title.rsplit(".", 1)[-1].lower() if "." in title else ""
@@ -91,7 +99,7 @@ async def upload(background: BackgroundTasks, file: UploadFile = File(...),
     existing = await store.find_by_hash(user.id, h)
     if existing:
         if existing["status"] != "failed":  # hazır/işleniyor: yeniden işleme yok (önbellek)
-            return JSONResponse({**_public(existing), "cached": True}, status_code=200)
+            return JSONResponse({**_public(existing, lang), "cached": True}, status_code=200)
         await store.delete_document(existing["id"], user.id)  # başarısız olan yeniden denensin
 
     since = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -105,24 +113,26 @@ async def upload(background: BackgroundTasks, file: UploadFile = File(...),
     except DuplicateError:  # aynı anda iki yükleme yarışı
         again = await store.find_by_hash(user.id, h)
         if again:
-            return JSONResponse({**_public(again), "cached": True}, status_code=200)
+            return JSONResponse({**_public(again, lang), "cached": True}, status_code=200)
         raise
     await store.log_usage(user.id, "upload", len(data))
     background.add_task(_process, store, user.id, doc["id"], kind, data)
-    return {**_public(doc), "cached": False}
+    return {**_public(doc, lang), "cached": False}
 
 
 @router.get("")
-async def list_documents(user: CurrentUser = Depends(get_current_user), store=Depends(get_store)):
-    return [_public(d) for d in await store.list_documents(user.id)]
+async def list_documents(user: CurrentUser = Depends(get_current_user), store=Depends(get_store),
+                         lang: Lang = Depends(get_lang)):
+    return [_public(d, lang) for d in await store.list_documents(user.id)]
 
 
 @router.get("/{doc_id}")
-async def get_document(doc_id: str, user: CurrentUser = Depends(get_current_user), store=Depends(get_store)):
+async def get_document(doc_id: str, user: CurrentUser = Depends(get_current_user), store=Depends(get_store),
+                       lang: Lang = Depends(get_lang)):
     doc = await store.get_document(_uuid(doc_id), user.id)
     if not doc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Belge bulunamadı")
-    out = _public(doc)
+    out = _public(doc, lang)
     out["text_preview"] = (doc.get("raw_text") or "")[:PREVIEW_CHARS]
     return out
 

@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from ..auth import CurrentUser, get_current_user
 from ..config import get_settings
+from ..i18n import Lang, get_lang, translate
 from ..llm import get_llm, model_name
 from ..store import get_store
 from ..summarize import summarize_stream
@@ -20,7 +21,7 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/documents", tags=["özetler"])
 
 INFLIGHT_TTL = 300  # sn: akış hiç başlamadan koparsa kilit kalıcı takılmasın
-_inflight: dict[tuple[str, str, str], float] = {}  # aynı özet iki kez paralel üretilmesin (maliyet)
+_inflight: dict[tuple[str, str, str, str], float] = {}  # aynı özet iki kez paralel üretilmesin (maliyet)
 
 
 def llm_factory():
@@ -52,14 +53,15 @@ async def _owned_doc(store, doc_id: str, user_id: str) -> dict:
 
 
 @router.get("/{doc_id}/summaries")
-async def list_summaries(doc_id: str, user: CurrentUser = Depends(get_current_user), store=Depends(get_store)):
+async def list_summaries(doc_id: str, user: CurrentUser = Depends(get_current_user), store=Depends(get_store),
+                         lang: Lang = Depends(get_lang)):
     doc = await _owned_doc(store, doc_id, user.id)
-    return await store.list_summaries(doc["id"])
+    return await store.list_summaries(doc["id"], lang)
 
 
 @router.post("/{doc_id}/summarize")
 async def summarize(doc_id: str, body: SummarizeIn, user: CurrentUser = Depends(get_current_user),
-                    store=Depends(get_store), llm=Depends(llm_factory)):
+                    store=Depends(get_store), llm=Depends(llm_factory), lang: Lang = Depends(get_lang)):
     doc = await _owned_doc(store, doc_id, user.id)
     if doc["status"] != "ready" or not doc.get("raw_text"):
         raise HTTPException(status.HTTP_409_CONFLICT, "Belge henüz hazır değil veya metni çıkarılamadı.")
@@ -67,7 +69,7 @@ async def summarize(doc_id: str, body: SummarizeIn, user: CurrentUser = Depends(
     headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
     if not body.regenerate:
-        cached = await store.get_summary(doc["id"], body.level)
+        cached = await store.get_summary(doc["id"], body.level, lang)
         if cached:
             async def replay():
                 yield _sse({"type": "start", "cached": True})
@@ -82,7 +84,7 @@ async def summarize(doc_id: str, body: SummarizeIn, user: CurrentUser = Depends(
                             f"Günlük özet sınırına ({s.daily_summary_limit}) ulaştınız. Yarın tekrar deneyin. "
                             "Daha önce hazırlanan özetleri yine görüntüleyebilirsiniz.")
 
-    key = (user.id, doc["id"], body.level)
+    key = (user.id, doc["id"], body.level, lang)
     started = _inflight.get(key)
     if started is not None and time.monotonic() - started < INFLIGHT_TTL:
         raise HTTPException(status.HTTP_409_CONFLICT, "Bu özet zaten hazırlanıyor, lütfen bekleyin.")
@@ -97,7 +99,7 @@ async def summarize(doc_id: str, body: SummarizeIn, user: CurrentUser = Depends(
         try:
             yield _sse({"type": "start", "cached": False})
             parts: list[str] = []
-            async for piece in summarize_stream(llm, doc["raw_text"], body.level, doc["title"]):
+            async for piece in summarize_stream(llm, doc["raw_text"], body.level, doc["title"], lang):
                 parts.append(piece)
                 yield _sse({"type": "delta", "text": piece})
             content = "".join(parts).strip()
@@ -105,7 +107,7 @@ async def summarize(doc_id: str, body: SummarizeIn, user: CurrentUser = Depends(
                 raise RuntimeError("Model boş yanıt döndürdü")
             saved = True
             try:
-                await store.save_summary(doc["id"], body.level, content, model_name("main"))
+                await store.save_summary(doc["id"], body.level, content, model_name("main"), lang)
             except Exception:
                 log.exception("Özet kaydedilemedi (%s)", doc["id"])
                 saved = False
@@ -114,7 +116,7 @@ async def summarize(doc_id: str, body: SummarizeIn, user: CurrentUser = Depends(
             raise
         except Exception:
             log.exception("Özetleme hatası (%s)", doc["id"])  # ayrıntı yalnızca sunucu günlüğüne
-            yield _sse({"type": "error", "message": "Özet şu anda hazırlanamadı. Lütfen biraz sonra tekrar deneyin."})
+            yield _sse({"type": "error", "message": translate("Özet şu anda hazırlanamadı. Lütfen biraz sonra tekrar deneyin.", lang)})
         finally:
             _inflight.pop(key, None)
 

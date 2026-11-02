@@ -18,16 +18,21 @@ client = TestClient(app)
 class FakeStore2(FakeStore):
     def __init__(self):
         super().__init__()
-        self.sums: dict[tuple[str, str], dict] = {}
+        self.sums: dict[tuple, dict] = {}
 
-    async def get_summary(self, doc_id, level):
-        return self.sums.get((doc_id, level))
+    @staticmethod
+    def _k(doc_id, level, lang):
+        return (doc_id, level) if lang == "tr" else (doc_id, level, lang)   # Türkçe anahtar eski testlerle uyumlu
 
-    async def list_summaries(self, doc_id):
-        return [v for (d, _), v in self.sums.items() if d == doc_id]
+    async def get_summary(self, doc_id, level, lang="tr"):
+        return self.sums.get(self._k(doc_id, level, lang))
 
-    async def save_summary(self, doc_id, level, content, model):
-        self.sums[(doc_id, level)] = {"level": level, "content": content, "model": model, "created_at": "now"}
+    async def list_summaries(self, doc_id, lang=None):
+        return [v for k, v in self.sums.items() if k[0] == doc_id and (lang is None or v.get("language", "tr") == lang)]
+
+    async def save_summary(self, doc_id, level, content, model, lang="tr"):
+        self.sums[self._k(doc_id, level, lang)] = {"level": level, "language": lang, "content": content,
+                                                   "model": model, "created_at": "now"}
 
     async def count_actions_since(self, user_id, action, since):
         return sum(1 for u, a in self.usage if u == user_id and a == action)

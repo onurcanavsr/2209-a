@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 
 from ..auth import CurrentUser, get_current_user
 from ..config import get_settings
+from ..i18n import Lang, get_lang
 from ..store import get_store
 from ..stt import STTError, get_stt
 
@@ -74,7 +75,7 @@ async def voice_status(user: CurrentUser = Depends(get_current_user), store=Depe
 
 @router.post("/transcribe")
 async def transcribe(audio: UploadFile = File(...), hints: str = Form(""), user: CurrentUser = Depends(get_current_user),
-                     store=Depends(get_store), provider=Depends(stt_provider)):
+                     store=Depends(get_store), provider=Depends(stt_provider), lang: Lang = Depends(get_lang)):
     s = get_settings()
     data = await audio.read(s.stt_max_bytes + 1)
     if len(data) > s.stt_max_bytes:
@@ -89,7 +90,7 @@ async def transcribe(audio: UploadFile = File(...), hints: str = Form(""), user:
                             "Günlük sesli komut hakkınız doldu. Düğme ve klavyeyle kullanmaya devam edebilirsiniz; hakkınız yarın yenilenir.")
     ext, mime = kind
     try:
-        text = await provider.transcribe(data, f"komut.{ext}", mime, parse_hints(hints))
+        text = await provider.transcribe(data, f"komut.{ext}", mime, parse_hints(hints), language=lang)
     except Exception as e:  # STTError veya ağ hatası: ayrıntı (anahtar parçası olabilir) kullanıcıya gitmez
         log.error("STT başarısız: %s", type(e).__name__)
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,

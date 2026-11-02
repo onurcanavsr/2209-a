@@ -10,8 +10,9 @@ from pydantic import BaseModel, Field
 
 from ..auth import CurrentUser, get_current_user
 from ..config import get_settings
+from ..i18n import Lang, get_lang, translate
 from ..llm import model_name
-from ..qa import HISTORY_TURNS, SYSTEM, build_prompt, cited_sources, select_passages
+from ..qa import HISTORY_TURNS, SYSTEMS, build_prompt, cited_sources, select_passages
 from ..store import get_store
 from .summaries import _owned_doc, _sse, llm_factory
 
@@ -41,7 +42,7 @@ async def clear_qa(doc_id: str, user: CurrentUser = Depends(get_current_user), s
 
 @router.post("/{doc_id}/ask")
 async def ask(doc_id: str, body: AskIn, user: CurrentUser = Depends(get_current_user),
-              store=Depends(get_store), llm=Depends(llm_factory)):
+              store=Depends(get_store), llm=Depends(llm_factory), lang: Lang = Depends(get_lang)):
     doc = await _owned_doc(store, doc_id, user.id)
     if doc["status"] != "ready" or not doc.get("raw_text"):
         raise HTTPException(status.HTTP_409_CONFLICT, "Belge henüz hazır değil veya metni çıkarılamadı.")
@@ -57,8 +58,9 @@ async def ask(doc_id: str, body: AskIn, user: CurrentUser = Depends(get_current_
                             "Önceki sorularınızı ve cevaplarını yine görüntüleyebilirsiniz.")
 
     history = await store.list_qa(doc["id"], user.id, HISTORY_TURNS)
-    passages, _matched = select_passages(doc["raw_text"], question, history[-1]["question"] if history else None)
-    prompt = build_prompt(doc["title"], question, passages, history)
+    passages, _matched = select_passages(doc["raw_text"], question, history[-1]["question"] if history else None,
+                                         lang=lang)
+    prompt = build_prompt(doc["title"], question, passages, history, lang)
 
     key = (user.id, doc["id"])
     started = _inflight.get(key)
@@ -75,7 +77,7 @@ async def ask(doc_id: str, body: AskIn, user: CurrentUser = Depends(get_current_
         try:
             yield _sse({"type": "start"})
             parts: list[str] = []
-            async for piece in llm("main").stream(SYSTEM, prompt, max_tokens=900):
+            async for piece in llm("main").stream(SYSTEMS[lang], prompt, max_tokens=900):
                 parts.append(piece)
                 yield _sse({"type": "delta", "text": piece})
             answer = "".join(parts).strip()
@@ -93,7 +95,7 @@ async def ask(doc_id: str, body: AskIn, user: CurrentUser = Depends(get_current_
             raise
         except Exception:
             log.exception("Soru-cevap hatası (%s)", doc["id"])  # ayrıntı yalnızca sunucu günlüğüne
-            yield _sse({"type": "error", "message": "Cevap şu anda hazırlanamadı. Lütfen biraz sonra tekrar deneyin."})
+            yield _sse({"type": "error", "message": translate("Cevap şu anda hazırlanamadı. Lütfen biraz sonra tekrar deneyin.", lang)})
         finally:
             _inflight.pop(key, None)
 
