@@ -127,7 +127,6 @@ export const EN: Record<string, string> = {
   "Yer imi eklendi. Yer İmleri bölümünden ulaşabilirsiniz.": "Bookmark added. You can find it in the Bookmarks section.",
   "Belgenin metnini sesli dinleyin; okunan kelime aşağıdaki metinde işaretlenir.": "Listen to the document's text; the word being read is highlighted in the text below.",
   "Belgeden çıkarılan metin. Bir kelimeye tıklayarak o yere yer imi ekleyebilirsiniz.": "The text extracted from the document. Click a word to add a bookmark at that spot.",
-  "Sesli okuma:": "Read aloud:",
   "metin": "text",
   "Metnin tamamını dinlemek günlük sesli okuma kotanızdan düşer; özeti dinlemek çok daha kısadır.": "Listening to the whole text counts against your daily read-aloud quota; listening to the summary is much shorter.",
   "Yer imi ekle": "Add bookmark",
@@ -542,4 +541,7 @@ export const EN: Record<string, string> = {
   "Eylemler": "Actions",
   "kullanicilar": "users",
   "Hesap dökümünü CSV indir": "Download account breakdown as CSV",
+  "Sesli Okuma": "Read Aloud",
+  "Sesli okuma": "Read aloud",
+  "Sesli Okuma:": "Read Aloud:",
 };
