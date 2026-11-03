@@ -544,4 +544,5 @@ export const EN: Record<string, string> = {
   "Sesli Okuma": "Read Aloud",
   "Sesli okuma": "Read aloud",
   "Sesli Okuma:": "Read Aloud:",
+  "Sesli okuma:": "Read aloud:",
 };
