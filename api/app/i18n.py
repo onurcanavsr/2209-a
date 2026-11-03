@@ -76,6 +76,8 @@ EN: dict[str, str] = {
     "Kart bulunamadı": "Card not found",
     "Bu seviye için özet yok": "There is no summary for this level",
     "Önce özeti oluşturun": "Create the summary first",
+    "Bu seviyede kayıtlı özet yok": "There is no saved summary at this level",
+    "PDF şu anda hazırlanamıyor": "The PDF cannot be prepared right now",
     "Seslendirilecek metin bulunamadı": "No text found to read aloud",
     # durum
     "Belge henüz hazır değil veya metni çıkarılamadı": "The document is not ready yet or its text could not be extracted",

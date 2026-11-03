@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     audio_ttl_days: int = 14
     daily_tts_chars: int = 100_000        # kullanıcı başına günlük yeni sentezlenen karakter
     tts_segment_chars: int = 1200
+    pdf_font_dir: str = ""  # DejaVu Sans klasörü (boşsa sistem yolları aranır; Docker imajında hazırdır)
     tts_max_download_chars: int = 60_000  # asıl metnin tek MP3 olarak indirilebileceği üst sınır
     tts_concurrency: int = 3
     max_pages: int = 300

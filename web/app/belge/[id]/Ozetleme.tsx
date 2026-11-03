@@ -22,6 +22,7 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
   const [kayitli, setKayitli] = useState<Partial<Record<Seviye, string>>>({});
   const [akan, setAkan] = useState("");
   const [calisiyor, setCalisiyor] = useState(false);
+  const [pdfHazirlaniyor, setPdfHazirlaniyor] = useState(false);
   const [durum, setDurum] = useState("");
   const [hata, setHata] = useState("");
   const baslik = useRef<HTMLHeadingElement>(null);
@@ -99,6 +100,24 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
     setCalisiyor(false);
   }
 
+  // Kayıtlı özeti düzenli bir PDF olarak indirir (sunucu üretir; yapay zekâ çağrısı ve kota yok)
+  async function pdfIndir() {
+    setHata(""); setPdfHazirlaniyor(true); setDurum(t("PDF hazırlanıyor…"));
+    try {
+      const r = await apiFetch(`/api/documents/${docId}/summary/pdf?level=${seviye}`);
+      if (!r.ok) throw new Error(await hataMesaji(r, t("PDF hazırlanamadı.")));
+      const u = URL.createObjectURL(await r.blob());
+      const a = document.createElement("a");
+      a.href = u; a.download = `${uzantisiz(belgeAdi)} - ${t("özet")}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(u), 10000);
+      setDurum(t("PDF indirildi."));
+    } catch (e) {
+      setDurum(""); setHata((e as Error).message);
+    }
+    setPdfHazirlaniyor(false);
+  }
+
   // ---- Sesli komutlar ----
   function seviyeyleOzetle(s: Seviye) {
     if (calisiyor) return;
@@ -136,6 +155,11 @@ export default function Ozetleme({ docId, baslik: belgeAdi }: { docId: string; b
         {varMi && (
           <button type="button" className="btn sec" disabled={calisiyor} onClick={() => olustur(true)}>
             {calisiyor ? t("Hazırlanıyor…") : t("Yeniden oluştur")}
+          </button>
+        )}
+        {varMi && !calisiyor && (
+          <button type="button" className="btn sec" disabled={pdfHazirlaniyor} onClick={pdfIndir}>
+            {pdfHazirlaniyor ? t("Hazırlanıyor…") : t("PDF indir")}
           </button>
         )}
       </div>

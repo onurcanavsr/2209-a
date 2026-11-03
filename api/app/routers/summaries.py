@@ -4,16 +4,19 @@ import logging
 import time
 import uuid
 from datetime import datetime, timezone
+from urllib.parse import quote
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 from ..auth import CurrentUser, get_current_user
 from ..config import get_settings
 from ..i18n import Lang, get_lang, translate
 from ..llm import get_llm, model_name
+from ..pdfexport import PdfFontError, baslik_adi, dosya_adi, ozet_pdf
 from ..store import get_store
 from ..summarize import summarize_stream
 
@@ -57,6 +60,29 @@ async def list_summaries(doc_id: str, user: CurrentUser = Depends(get_current_us
                          lang: Lang = Depends(get_lang)):
     doc = await _owned_doc(store, doc_id, user.id)
     return await store.list_summaries(doc["id"], lang)
+
+
+@router.get("/{doc_id}/summary/pdf")
+async def summary_pdf(doc_id: str, level: Literal["short", "medium", "detailed"] = "medium",
+                      user: CurrentUser = Depends(get_current_user), store=Depends(get_store),
+                      lang: Lang = Depends(get_lang)):
+    """Kayıtlı özeti, düzenli ve seçilebilir metinli bir PDF olarak indirir (yapay zekâ çağrısı yapmaz, kota harcamaz)."""
+    doc = await _owned_doc(store, doc_id, user.id)
+    summ = await store.get_summary(doc["id"], level, lang)
+    if not summ or not (summ.get("content") or "").strip():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Bu seviyede kayıtlı özet yok. Önce özeti oluşturun.")
+    try:
+        data = await run_in_threadpool(
+            ozet_pdf, summ["content"], title=doc["title"], level=level, lang=lang,
+            created_at=summ.get("created_at"), font_dir=get_settings().pdf_font_dir)
+    except PdfFontError:
+        log.exception("PDF yazı tipi bulunamadı")
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "PDF şu anda hazırlanamıyor. Lütfen daha sonra tekrar deneyin.")
+    name = dosya_adi(doc["title"], lang)
+    ascii_name = name.encode("ascii", "ignore").decode().strip() or "ozet.pdf"
+    return Response(content=data, media_type="application/pdf", headers={
+        "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}",
+        "Cache-Control": "private, no-store"})
 
 
 @router.post("/{doc_id}/summarize")

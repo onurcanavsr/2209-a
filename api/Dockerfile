@@ -1,8 +1,8 @@
 FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
-# OCR için Tesseract (Türkçe + İngilizce dil paketleri)
+# OCR için Tesseract (Türkçe + İngilizce dil paketleri); fonts-dejavu-core: özet PDF'inde Türkçe karakterler için
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      tesseract-ocr tesseract-ocr-tur tesseract-ocr-eng \
+      tesseract-ocr tesseract-ocr-tur tesseract-ocr-eng fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /code
 COPY requirements.txt .

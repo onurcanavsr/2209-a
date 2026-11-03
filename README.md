@@ -40,7 +40,8 @@ Yapay zekâ destekli, erişilebilir akademik içerik platformu (TÜBİTAK 2209-A
 ## Faz 3: özetleme
 - `api/app/summarize.py`: kısa/orta/ayrıntılı özet; 60.000 karakteri aşan belgeler bölümlere ayrılıp ucuz modelle özetlenir (map), nihai özet kaliteli modelle akıtılır (reduce)
 - `api/app/routers/summaries.py`: `POST /api/documents/{id}/summarize` (SSE akışı), `GET /api/documents/{id}/summaries`
-- Özetler `0004_summaries.sql` ile saklanır; aynı belge+seviye için tekrar model çağrılmaz. Günlük sınır: `DAILY_SUMMARY_LIMIT`.
+- Özetler `0004_summaries.sql` ile saklanır; aynı belge+seviye için tekrar model çağrılmaz. Günlük sınır: `DAILY_SUMMARY_LIMIT`.
+- **PDF olarak indirme:** `GET /api/documents/{id}/summary/pdf?level=short|medium|detailed` kayıtlı özeti A4 PDF yapar (`api/app/pdfexport.py`, reportlab). Başlık, belge adı/tarih, bölüm başlıkları, maddeler ve kalın terimler özetin sırasıyla yazılır; metin vektördür (kopyalanınca düzenli çıkar, aranabilir) ve her sayfada "Sayfa n / m" bulunur. Yapay zekâ çağrısı yapmaz, kota harcamaz; özet o seviyede kayıtlı değilse 404 döner. Türkçe karakterler için DejaVu Sans gerekir: Docker imajında `fonts-dejavu-core` kuruludur; imaj dışında çalıştırırsanız `PDF_FONT_DIR` ile yazı tipi klasörünü verin (yoksa uç nokta 503 döner).
 - Gerekli: sunucu `.env` içinde `ANTHROPIC_API_KEY`
 - Testler: 49 (`cd api && pytest`), sahte model kullanır; gerçek modelle deneme sizin ilk özetinizdir.
 
