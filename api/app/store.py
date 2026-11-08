@@ -74,7 +74,7 @@ class SupabaseStore:
 
     async def get_document(self, doc_id: str, user_id: str) -> dict | None:
         r = await self._c().get("/documents", params={
-            "select": LIST_COLS + ",raw_text", "id": f"eq.{doc_id}", "user_id": f"eq.{user_id}", "limit": "1"})
+            "select": LIST_COLS + ",raw_text,page_starts,page_meta", "id": f"eq.{doc_id}", "user_id": f"eq.{user_id}", "limit": "1"})
         self._check(r)
         rows = r.json()
         return rows[0] if rows else None

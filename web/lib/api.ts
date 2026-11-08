@@ -15,6 +15,9 @@ export type Belge = {
   error?: string | null;
   created_at: string;
   text_preview?: string;
+  page_kinds?: ("text" | "ocr" | "image")[];   // sayfa başına: metin | OCR ile okundu | görüntü (metin okunamadı)
+  pages_approx?: boolean;                          // Word: sayfa sınırları yaklaşık
+  page_word_starts?: number[];   // PDF/PowerPoint: her sayfa/slayttan önceki kelime sayısı (sayfa gezintisi)
 };
 
 // Türkçe kaynak etiketler; ekranda t(DURUM[durum]) ile gösterilir

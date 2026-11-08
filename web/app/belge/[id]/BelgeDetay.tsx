@@ -21,6 +21,7 @@ import Notlar from "./Notlar";
 import Kartlar from "./Kartlar";
 import YerImleri from "./YerImleri";
 import VurguluMetin from "./VurguluMetin";
+import SayfaGezgini from "./SayfaGezgini";
 
 function boyutYazi(lang: Lang, b?: number | null) {
   if (!b) return "";
@@ -156,6 +157,15 @@ export default function BelgeDetay({ id }: { id: string }) {
   );
 }
 
+type SayfaVeri = { sayfa: number; metin: string; ofset: number };   // ofset: bu sayfadan önceki kelime sayısı
+
+// Belge genelindeki kelime sırasının hangi sayfada olduğu (boş sayfalar bir sonrakiyle aynı başlangıcı paylaşır)
+function sayfaBul(basi: number[], kelime: number): number {
+  let s = 0;
+  for (let i = 0; i < basi.length; i++) { if (basi[i] <= kelime) s = i; else break; }
+  return s;
+}
+
 // "Sesli Okuma" ve "Çıkarılan Metin" bölümleri aynı metin kutusunu paylaşır:
 // dinlerken okunan kelime işaretlenir; metin bölümünde bir kelime seçilip yer imi eklenebilir.
 function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "dinle" | "metin"; hedef: number | null }) {
@@ -163,7 +173,22 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
   const metinKap = useRef<HTMLDivElement>(null);
   const onceki = useRef(-1);
   // Slayt işareti çıkarmada [Slayt n] olarak saklanır; İngilizce arayüzde [Slide n] gösterilir (kelime sayısı aynı kalır → yer imi sıraları bozulmaz)
-  const gosterilenMetin = useMemo(() => (lang === "en" ? (doc.text_preview ?? "").replace(/\[Slayt (\d+)\]/g, "[Slide $1]") : (doc.text_preview ?? "")), [doc.text_preview, lang]);
+  // Sayfa/slayt gezintisi: yalnızca "Çıkarılan Metin" bölümü ve sayfa bilgisi olan belgeler (PDF, PowerPoint). Diğerleri eskisi gibi tek metin.
+  const sayfaBasi = doc.page_word_starts;
+  const sayfali = mod === "metin" && !!sayfaBasi?.length;
+  const toplamSayfa = sayfaBasi?.length ?? 0;
+  const slayt = doc.kind === "pptx";
+  const [sayfa, setSayfa] = useState(() => (mod === "metin" && hedef !== null && sayfaBasi?.length ? sayfaBul(sayfaBasi, hedef) : 0));
+  const [veri, setVeri] = useState<SayfaVeri | null>(null);
+  const onbellek = useRef(new Map<number, SayfaVeri>());
+  const uygulananHedef = useRef<number | null>(null);
+  const guncel = sayfali ? (veri && veri.sayfa === sayfa ? veri : onbellek.current.get(sayfa) ?? null) : null;
+  const yuklendi = !sayfali || guncel !== null;
+  const sayfaOfseti = guncel?.ofset ?? 0;
+  const sayfaTuru = sayfali ? (doc.page_kinds?.[sayfa] ?? "text") : "text";
+  const ocrSayfalari = useMemo(() => (doc.page_kinds ?? []).flatMap((k, i) => (k === "ocr" ? [i] : [])), [doc.page_kinds]);
+  const hamMetin = sayfali ? (guncel?.metin ?? "") : (doc.text_preview ?? "");
+  const gosterilenMetin = useMemo(() => (lang === "en" ? hamMetin.replace(/\[Slayt (\d+)\]/g, "[Slide $1]") : hamMetin), [hamMetin, lang]);
   const kelimeler = useMemo(() => gosterilenMetin.split(/\s+/).filter(Boolean), [gosterilenMetin]);
   const isaretle = useCallback((i: number) => {
     vurguIsaretle(metinKap.current, onceki.current, i);
@@ -177,6 +202,31 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
   const [hata, setHata] = useState("");
 
   const ozet = useCallback((i: number) => kelimeler.slice(i, i + 6).join(" ").slice(0, 60), [kelimeler]);
+
+  // Seçilen sayfanın metnini sunucudan getir (bir kez getirilen sayfa önbellekte kalır)
+  useEffect(() => {
+    if (!sayfali || onbellek.current.has(sayfa)) return;
+    let iptal = false;
+    (async () => {
+      let r: Response;
+      try { r = await apiFetch(`/api/documents/${id}/pages/${sayfa + 1}`); }
+      catch { if (!iptal) setHata(t("Sunucuya ulaşılamadı.")); return; }
+      if (!r.ok) { const m = await hataMesaji(r, t("Sayfa yüklenemedi.")); if (!iptal) setHata(m); return; }
+      const j = await r.json();
+      const v: SayfaVeri = { sayfa, metin: j.text ?? "", ofset: j.word_offset ?? 0 };
+      onbellek.current.set(sayfa, v);
+      if (!iptal) setVeri(v);
+    })();
+    return () => { iptal = true; };
+  }, [sayfali, sayfa, id, t]);
+
+  function gitSayfa(n: number) {
+    if (n < 0 || n >= toplamSayfa || n === sayfa) return;
+    setSecili(null); setEtiket(""); setHata("");
+    setDurum(slayt ? t("Slayt {i} / {n}", { i: n + 1, n: toplamSayfa }) : t("Sayfa {i} / {n}", { i: n + 1, n: toplamSayfa }));
+    metinKap.current?.scrollTo?.({ top: 0 });
+    setSayfa(n);
+  }
 
   function sec(i: number) {
     setSecili(i);
@@ -196,12 +246,21 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
   // Yer imi bağlantısından gelindiyse o kelimeye git
   useEffect(() => {
     if (mod !== "metin" || hedef === null) return;
-    if (hedef >= kelimeler.length) { setHata(t("Bu yer imi, ekranda gösterilen metin bölümünün dışında kalıyor.")); return; }
-    setSecili(hedef);
-    setEtiket(ozet(hedef));
-    metinKap.current?.querySelector<HTMLElement>(`[data-w="${hedef}"]`)?.scrollIntoView({ block: "center", behavior: "auto" });
-    setDurum(t("Yer imine gidildi: “{metin}”.", { metin: kelimeler.slice(hedef, hedef + 8).join(" ") }));
-  }, [mod, hedef, kelimeler, ozet, t]);
+    let yerel = hedef;   // gösterilen metindeki (sayfadaki) kelime sırası
+    if (sayfali && sayfaBasi) {
+      if (uygulananHedef.current === hedef) return;      // yer imine yalnızca bir kez gidilir; sonra elle gezinince sayfa geri atlamaz
+      const p = sayfaBul(sayfaBasi, hedef);
+      if (p !== sayfa) { setSayfa(p); return; }
+      if (!yuklendi) return;                              // sayfa gelince bu etki yeniden çalışır
+      yerel = hedef - sayfaOfseti;
+      uygulananHedef.current = hedef;
+    }
+    if (yerel < 0 || yerel >= kelimeler.length) { setHata(t("Bu yer imi, ekranda gösterilen metin bölümünün dışında kalıyor.")); return; }
+    setSecili(yerel);
+    setEtiket(ozet(yerel));
+    metinKap.current?.querySelector<HTMLElement>(`[data-w="${yerel}"]`)?.scrollIntoView({ block: "center", behavior: "auto" });
+    setDurum(t("Yer imine gidildi: “{metin}”.", { metin: kelimeler.slice(yerel, yerel + 8).join(" ") }));
+  }, [mod, hedef, kelimeler, ozet, t, sayfali, sayfaBasi, sayfa, yuklendi, sayfaOfseti]);
 
   function tikla(e: React.MouseEvent) {
     if (mod !== "metin") return;
@@ -217,7 +276,7 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
     try {
       const r = await apiFetch(`/api/documents/${id}/bookmarks`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: etiket.trim(), word_index: secili, snippet: kelimeler.slice(secili, secili + 25).join(" ").slice(0, 200) }),
+        body: JSON.stringify({ label: etiket.trim(), word_index: secili + sayfaOfseti, snippet: kelimeler.slice(secili, secili + 25).join(" ").slice(0, 200) }),
       });
       if (!r.ok) setHata(await hataMesaji(r, t("Yer imi eklenemedi.")));
       else setDurum(t("Yer imi eklendi. Yer İmleri bölümünden ulaşabilirsiniz."));
@@ -233,7 +292,10 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
       <p className="panel-alt">
         {mod === "dinle"
           ? t("Belgenin metnini sesli dinleyin; okunan kelime aşağıdaki metinde işaretlenir.")
-          : t("Belgeden çıkarılan metin. Bir kelimeye tıklayarak o yere yer imi ekleyebilirsiniz.")}
+          : sayfali
+            ? (slayt ? t("Belgeden çıkarılan metin slayt slayt gösterilir. Bir kelimeye tıklayarak o yere yer imi ekleyebilirsiniz.")
+                     : t("Belgeden çıkarılan metin sayfa sayfa gösterilir. Bir kelimeye tıklayarak o yere yer imi ekleyebilirsiniz."))
+            : t("Belgeden çıkarılan metin. Bir kelimeye tıklayarak o yere yer imi ekleyebilirsiniz.")}
       </p>
 
       {mod === "dinle" && (
@@ -250,7 +312,7 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
           <h3 id="yer-imi-baslik" className="liste-baslik" style={{ marginTop: 0 }}>{t("Yer imi ekle")}</h3>
           <div className="iki-sutun">
             <div>
-              <label htmlFor="yi-sira">{t("Kelime sırası (1–{n})", { n: kelimeler.length })}</label>
+              <label htmlFor="yi-sira">{sayfali ? t("Bu sayfadaki kelime sırası (1–{n})", { n: kelimeler.length }) : t("Kelime sırası (1–{n})", { n: kelimeler.length })}</label>
               <input id="yi-sira" type="number" min={1} max={Math.max(1, kelimeler.length)} value={secili === null ? "" : secili + 1}
                 onChange={(e) => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= 1 && n <= kelimeler.length) sec(n - 1); }} />
               <p className="hint">{t("Metinde bir kelimeye tıklayın ya da sırasını yazın.")}</p>
@@ -267,11 +329,43 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
       <div role="status" aria-live="polite">{durum && <p className="msg ok">{durum}</p>}</div>
       <div role="alert">{hata && <p className="msg err">{hata}</p>}</div>
 
+      {sayfali && ocrSayfalari.length > 0 && (
+        <div className="alt-kart" role="group" aria-label={t("OCR ile okunan sayfalar")}>
+          <p className="hint" style={{ marginTop: 0 }}>{t("OCR ile okunan sayfalar (görüntüden okunduğu için hata olabilir):")}</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+            {ocrSayfalari.map((i) => (
+              <button key={i} type="button" className="btn sec" style={{ width: "auto" }} aria-current={i === sayfa ? "true" : undefined}
+                aria-label={t("{n}. sayfaya git", { n: i + 1 })} onClick={() => gitSayfa(i)}>{i + 1}</button>
+            ))}
+          </div>
+        </div>
+      )}
+      {sayfali && <SayfaGezgini sayfa={sayfa} toplam={toplamSayfa} slayt={slayt} onGit={gitSayfa} />}
+      {sayfali && doc.pages_approx && (
+        <p className="hint">{t("Bu Word dosyasında sayfa bilgisi kayıtlı değil; sayfalar yaklaşık olarak (≈3.000 karakter) bölündü ve Word'deki sayfa numaralarıyla birebir aynı olmayabilir.")}</p>
+      )}
+      {sayfali && sayfaTuru === "ocr" && (
+        <p className="hint" role="note" style={{ borderLeft: "4px solid currentColor", paddingLeft: "0.6rem" }}>
+          <strong>OCR</strong> — {t("Bu sayfa görüntü (tarama veya fotoğraf) olduğu için OCR ile okundu. Okuma hataları olabilir.")}
+        </p>
+      )}
+      {sayfali && sayfaTuru === "image" && (
+        <p className="hint" role="note" style={{ borderLeft: "4px solid currentColor", paddingLeft: "0.6rem" }}>
+          {t("Bu sayfa görüntü olarak algılandı ancak metin okunamadı (OCR uygulanmadı veya sonuç boştu).")}
+        </p>
+      )}
       <div className={"doctext" + (mod === "metin" ? " tiklanir" : "")} ref={metinKap} tabIndex={0} role="region" onClick={tikla}
-        aria-label={t("Çıkarılan metin (okumak için ok tuşlarını kullanın)")}>
-        <VurguluMetin text={gosterilenMetin} />
+        aria-busy={!yuklendi} aria-label={t("Çıkarılan metin (okumak için ok tuşlarını kullanın)")}>
+        {yuklendi ? <VurguluMetin text={gosterilenMetin} /> : <p className="hint">{t("Sayfa yükleniyor…")}</p>}
       </div>
-      {uzun && <p className="hint">{t("Burada metnin yalnızca ilk bölümü gösteriliyor. Özetleme ve sesli okuma tüm metni kullanacak; kelime vurgusu ve yer imleri yalnızca burada gösterilen bölümde çalışır.")}</p>}
+      {sayfali && yuklendi && gosterilenMetin === "" && (
+        <p className="hint">{slayt ? t("Bu slaytta metin yok.") : t("Bu sayfada metin yok (görsel bir sayfa olabilir).")}</p>
+      )}
+      {sayfali && <SayfaGezgini kompakt sayfa={sayfa} toplam={toplamSayfa} slayt={slayt} onGit={gitSayfa} />}
+      {mod === "metin" && !sayfali && doc.status === "ready" && ["pdf", "pptx", "docx"].includes(doc.kind) && (
+        <p className="hint">{t("Bu belge için sayfa bilgisi yok (sayfa gezintisi eklenmeden önce yüklenmiş olabilir). Sayfa sayfa görmek için belgeyi silip yeniden yükleyin.")}</p>
+      )}
+      {uzun && !sayfali && <p className="hint">{t("Burada metnin yalnızca ilk bölümü gösteriliyor. Özetleme ve sesli okuma tüm metni kullanacak; kelime vurgusu ve yer imleri yalnızca burada gösterilen bölümde çalışır.")}</p>}
     </section>
   );
 }
