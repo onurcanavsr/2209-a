@@ -273,3 +273,87 @@ def test_gecerli_baslangiclar_dogrulama():
 def test_sayfa_metni_sondaki_bosluklari_atar():
     t = "bir iki\n\nuc dort\n\n"
     assert ex.sayfa_metni(t, [0, 9], 0) == "bir iki" and ex.sayfa_metni(t, [0, 9], 1) == "uc dort"
+
+
+# ---------------- eski Türkçe yazı tipi kodlaması (ı→›, ş→ﬂ, ğ→¤ ...) ----------------
+BOZUK = ("Bu kitab›n bas›m, yay›m ve sat›\ufb02 haklar› Anadolu Üniversitesine aittir.\n"
+         "“Uzaktan Ö¤retim” tekni¤ine uygun olarak haz›rlanan bu kitab›n bütün haklar› sakl›d›r.\n"
+         "\u2039lgili kurulu\ufb02tan izin almadan kitab›n tümü ya da bölümleri mekanik, elektronik, fotokopi, manyetik kay›t\n"
+         "veya ba\ufb02ka \ufb02ekillerde ço¤alt›lamaz, bas›lamaz ve da¤›t›lamaz.")
+DUZGUN = ("Bu kitabın basım, yayım ve satış hakları Anadolu Üniversitesine aittir.\n"
+          "“Uzaktan Öğretim” tekniğine uygun olarak hazırlanan bu kitabın bütün hakları saklıdır.\n"
+          "İlgili kuruluştan izin almadan kitabın tümü ya da bölümleri mekanik, elektronik, fotokopi, manyetik kayıt\n"
+          "veya başka şekillerde çoğaltılamaz, basılamaz ve dağıtılamaz.")
+
+
+def test_bozuk_kodlama_saptanir_ve_duzeltilir():
+    assert ex._legacy_turkish(BOZUK)
+    parts, fixed = ex._fix_legacy_turkish([BOZUK], ["text"])
+    assert fixed and parts[0] == DUZGUN and len(parts[0]) == len(BOZUK)     # karakter sayısı aynı: kelime sıraları kaymaz
+
+
+def test_normal_metin_ve_tirnak_oklari_bozuk_sayilmaz():
+    assert not ex._legacy_turkish("Nesnelerin İnterneti cihazlarının sınırlı enerji, bellek ve işlemci kapasiteleri")
+    assert not ex._legacy_turkish("Ana sayfa › Ürünler › Kategori › Telefon › Model › Detay")          # boşlukla çevrili oklar
+    assert not ex._legacy_turkish("‹ Önceki   Sonraki ›")
+    parts, fixed = ex._fix_legacy_turkish(["Fiyat 10 € ve 1\u20442 oran"], ["text"])
+    assert not fixed and parts == ["Fiyat 10 € ve 1\u20442 oran"]
+
+
+def test_bozuk_belgede_euro_ve_kesir_korunur_harfin_yanindakiler_duzelir():
+    s = BOZUK + " Fiyat 10 € ve 1\u20442 oran; ço€alt›lamaz \u2044ahin."
+    out, fixed = ex._fix_legacy_turkish([s], ["text"])
+    assert fixed and "Fiyat 10 € ve 1\u20442 oran" in out[0] and "çoğaltılamaz Şahin" not in out[0]
+    assert "çoğaltılamaz Ğahin" in out[0]
+
+
+def test_ocr_sayfalarina_dokunulmaz():
+    parts, fixed = ex._fix_legacy_turkish([BOZUK, "OCR metni ›››››››› kitab›n"], ["text", "ocr"])
+    assert fixed and parts[0] == DUZGUN and parts[1] == "OCR metni ›››››››› kitab›n"
+
+
+def reportlab_dejavu_pdf(pages):
+    pytest.importorskip("reportlab")
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.pdfgen import canvas
+    import os
+    path = next((p for p in ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/dejavu/DejaVuSans.ttf") if os.path.exists(p)), None)
+    if not path:
+        pytest.skip("DejaVu Sans yok")
+    if "DejaVuTest" not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(TTFont("DejaVuTest", path))
+    b = io.BytesIO()
+    c = canvas.Canvas(b)
+    for lines in pages:
+        c.setFont("DejaVuTest", 11)
+        y = 800
+        for ln in lines:
+            c.drawString(50, y, ln)
+            y -= 16
+        c.showPage()
+    c.save()
+    return b.getvalue()
+
+
+def test_pdf_iceriginde_bozuk_harfler_otomatik_duzelir():
+    data = reportlab_dejavu_pdf([BOZUK.split("\n")[:2] + BOZUK.split("\n")[2:3], BOZUK.split("\n")[3:] + ["Ikinci sayfa ek metin burada."]])
+    r = ex.extract("pdf", data)
+    assert "kitabın basım, yayım ve satış hakları" in r.text and "çoğaltılamaz" in r.text and "İlgili kuruluştan" in r.text
+    assert "›" not in r.text and "¤" not in r.text
+    assert ex.LEGACY_FIX_NOTE in r.note
+    assert len(r.page_starts) == 2                                           # sayfa gezintisi bozulmaz
+
+
+def test_duzgun_turkce_pdf_degismez_ve_not_eklenmez():
+    data = reportlab_dejavu_pdf([DUZGUN.split("\n")])
+    r = ex.extract("pdf", data)
+    assert "kitabın basım" in r.text and (r.note is None or ex.LEGACY_FIX_NOTE not in r.note)
+
+
+def test_pdf_ligaturlu_s_harfleri_duzelir_gercek_fi_fl_korunur():
+    # ş/Ş: pdfium "fl"/"fi" olarak verir; gerçek sözcüklerdeki fi/fl (fiyat, flora, fikir, enflasyon) aynen kalmalı
+    satir = "Bu kitab›n bas›m, yay›m ve sat›\ufb02 ba\ufb02ka \ufb01ekil haklar› fiyat flora fikir enflasyon refleks \u2039lgili ço¤alt›lamaz"
+    r = ex.extract("pdf", reportlab_dejavu_pdf([[satir, "Ikinci satir dizgisi yeterince uzun olsun."]]))
+    assert "Bu kitabın basım, yayım ve satış başka Şekil hakları fiyat flora fikir enflasyon refleks İlgili çoğaltılamaz" in r.text
+    assert ex.LEGACY_FIX_NOTE in r.note

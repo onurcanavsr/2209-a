@@ -76,6 +76,7 @@ EN: dict[str, str] = {
     "Kart bulunamadı": "Card not found",
     "Bu seviye için özet yok": "There is no summary for this level",
     "Önce özeti oluşturun": "Create the summary first",
+    "Bu PDF'in yazı tipi kodlaması hatalıydı; bozuk Türkçe harfler otomatik düzeltildi": "This PDF used a faulty font encoding; the corrupted Turkish letters were corrected automatically",
     "Bu belgede sayfa bilgisi yok": "This document has no page information",
     "Sayfa bulunamadı": "Page not found",
     "Bu seviyede kayıtlı özet yok": "There is no saved summary at this level",

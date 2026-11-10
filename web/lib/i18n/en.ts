@@ -228,6 +228,8 @@ export const EN: Record<string, string> = {
   "MP3 indir": "Download MP3",
   "Önceki sayfa": "Previous page",
   "OCR ile okunan sayfalar": "Pages read with OCR",
+  "Belgenin {toplam} sayfasından yalnızca ilk {n} sayfası metne alındı: metin uzunluk sınırı aşıldı.": "Only the first {n} of the document's {toplam} pages were included in the text: the text length limit was exceeded.",
+  "Belgenin {toplam} slaytından yalnızca ilk {n} slaytı metne alındı: metin uzunluk sınırı aşıldı.": "Only the first {n} of the document's {toplam} slides were included in the text: the text length limit was exceeded.",
   "OCR ile okunan sayfalar (görüntüden okunduğu için hata olabilir):": "Pages read with OCR (may contain errors because they were read from an image):",
   "{n}. sayfaya git": "Go to page {n}",
   "Bu sayfa görüntü (tarama veya fotoğraf) olduğu için OCR ile okundu. Okuma hataları olabilir.": "This page is an image (scan or photo), so it was read with OCR. There may be reading errors.",

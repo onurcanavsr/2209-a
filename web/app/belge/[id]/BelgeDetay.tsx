@@ -341,6 +341,13 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
         </div>
       )}
       {sayfali && <SayfaGezgini sayfa={sayfa} toplam={toplamSayfa} slayt={slayt} onGit={gitSayfa} />}
+      {sayfali && doc.truncated && doc.page_count != null && doc.page_count > toplamSayfa && (
+        <p className="hint" role="note">
+          {slayt
+            ? t("Belgenin {toplam} slaytından yalnızca ilk {n} slaytı metne alındı: metin uzunluk sınırı aşıldı.", { toplam: doc.page_count, n: toplamSayfa })
+            : t("Belgenin {toplam} sayfasından yalnızca ilk {n} sayfası metne alındı: metin uzunluk sınırı aşıldı.", { toplam: doc.page_count, n: toplamSayfa })}
+        </p>
+      )}
       {sayfali && doc.pages_approx && (
         <p className="hint">{t("Bu Word dosyasında sayfa bilgisi kayıtlı değil; sayfalar yaklaşık olarak (≈3.000 karakter) bölündü ve Word'deki sayfa numaralarıyla birebir aynı olmayabilir.")}</p>
       )}

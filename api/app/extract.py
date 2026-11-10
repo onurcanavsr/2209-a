@@ -96,6 +96,85 @@ def _check_zip(data: bytes, required: str, what: str) -> None:
         raise ExtractError(f"Bu dosya geçerli bir {what} belgesi değil.")
 
 
+# ---------------- eski Türkçe yazı tipi kodlaması ----------------
+# Eski (Mac tabanlı) yayıncılık programlarıyla hazırlanmış PDF'lerde (ör. birçok üniversite e-kitabı) Türkçe harfler,
+# MacTurkish baytlarının MacRoman gibi okunmasıyla bozuk gelir: ı→›  İ→‹  ğ→¤  Ğ→⁄  ş→ﬂ  Ş→ﬁ  (kitab›n, ço¤alt›lamaz, baflka).
+# Bozukluk PDF'in kendi metin katmanındadır (başka programlarda kopyalayınca da böyledir); eşleme birebir olduğu için geri çevrilebilir.
+LEGACY_FIX_NOTE = "Bu PDF'in yazı tipi kodlaması hatalıydı; bozuk Türkçe harfler otomatik düzeltildi."
+_L = "A-Za-zÇĞİÖŞÜçğıöşü"
+_LEGACY_ANGLE_IN_WORD = re.compile(rf"(?<=[{_L}])\u203a(?=[{_L}])")
+_LEGACY_SIMPLE = str.maketrans({"\u203a": "ı", "\u2039": "İ", "\u00a4": "ğ", "\ufb01": "Ş", "\ufb02": "ş"})
+_LEGACY_EURO = re.compile(rf"(?<=[{_L}])\u20ac|\u20ac(?=[{_L}])")      # € yalnızca harfin yanındaysa ğ (fiyatlardaki € korunur)
+_LEGACY_FRAC = re.compile(rf"(?<=[{_L}])\u2044|\u2044(?=[{_L}])")      # ⁄ yalnızca harfin yanındaysa Ğ (1⁄2 gibi kesirler korunur)
+
+
+def _legacy_turkish(text: str) -> bool:
+    """Belgede bu bozukluk var mı? Kelime İÇİNDE (iki yanı harf) en az 5 adet › ve çoğunluk — normal metinde › boşlukla çevrili tırnak/ok olarak geçer."""
+    n = text.count("\u203a")
+    if n < 5:
+        return False
+    inside = len(_LEGACY_ANGLE_IN_WORD.findall(text))
+    return inside >= 5 and inside / n >= 0.6
+
+
+def _ligature_fix_page(pdf, i: int, t: str) -> str:
+    """ş/Ş harfleri PDF motorunda ligatür olarak ("ﬂ"/"ﬁ") gelir ve iki harfe ("fl"/"fi") açılır. Açılan iki harf TEK glifin kutusunu
+    paylaşır (sol ve sağ sınırları aynıdır); gerçek 'fl'/'fi' harflerinin kutuları ayrıdır. Yalnızca aynı kutuyu paylaşan çiftler ş/Ş olur
+    (sözlük tahmini yok: "enflasyon", "fizik", "fikir" gibi gerçek sözcükler korunur). Eşleşme doğrulanamazsa metin olduğu gibi döner."""
+    import ctypes
+    import pypdfium2.raw as pr
+
+    page = pdf[i]
+    try:
+        tp = page.get_textpage()
+        try:
+            h = tp.raw
+            n = pr.FPDFText_CountChars(h)
+            if n != len(t):
+                return t
+            chars = [pr.FPDFText_GetUnicode(h, k) for k in range(n)]
+            if any(c != ord(ch) for c, ch in zip(chars, t)):
+                return t
+            box1 = [ctypes.c_double() for _ in range(4)]
+            box2 = [ctypes.c_double() for _ in range(4)]
+            out: list[str] = []
+            k = 0
+            while k < n:
+                if chars[k] == 0x66 and k + 1 < n and chars[k + 1] in (0x6C, 0x69):
+                    pr.FPDFText_GetCharBox(h, k, *box1)
+                    pr.FPDFText_GetCharBox(h, k + 1, *box2)
+                    w1 = box1[1].value - box1[0].value
+                    tol = 0.02 * w1
+                    if w1 > 0 and abs(box1[0].value - box2[0].value) <= tol and abs(box1[1].value - box2[1].value) <= tol:
+                        out.append("ş" if chars[k + 1] == 0x6C else "Ş")
+                        k += 2
+                        continue
+                out.append(t[k])
+                k += 1
+            return "".join(out)
+        finally:
+            tp.close()
+    except Exception:
+        return t
+    finally:
+        page.close()
+
+
+def _fix_legacy_turkish(parts: list[str], kinds: list[str], pdf=None) -> tuple[list[str], bool]:
+    """Bozuk kodlama saptanırsa metin katmanından gelen sayfalardaki harfleri düzeltir (OCR sayfalarına dokunulmaz).
+    `pdf` verilirse ş/Ş (ligatür olarak gelen "fl"/"fi") de düzeltilir."""
+    if not _legacy_turkish("\n".join(p for p, k in zip(parts, kinds) if k == "text")):
+        return parts, False
+    fixed: list[str] = []
+    for i, (p, k) in enumerate(zip(parts, kinds)):
+        if k == "text":
+            if pdf is not None and ("fl" in p or "fi" in p):
+                p = _ligature_fix_page(pdf, i, p)       # indeksler özgün metne göre olduğundan önce bu
+            p = _LEGACY_FRAC.sub("Ğ", _LEGACY_EURO.sub("ğ", p.translate(_LEGACY_SIMPLE)))
+        fixed.append(p)
+    return fixed, True
+
+
 # ---------------- biçimlere göre çıkarma ----------------
 def _pdf(data: bytes) -> Extracted:
     import pypdfium2 as pdfium
@@ -140,11 +219,14 @@ def _pdf(data: bytes) -> Extracted:
                 kinds.append(kind)
             finally:
                 page.close()
+        parts, legacy_fixed = _fix_legacy_turkish(parts, kinds, pdf)
         note = None
         if ocr_pages:
             note = f"{ocr_pages} görsel sayfa OCR ile okundu; okuma hataları olabilir."
             if image_pages > ocr_pages:
                 note += f" OCR en fazla {s.ocr_max_pages} sayfa için uygulanır, kalan görsel sayfalar atlandı."
+        if legacy_fixed:
+            note = f"{note} {LEGACY_FIX_NOTE}" if note else LEGACY_FIX_NOTE
         return Extracted("\n\n".join(parts), page_count=n, used_ocr=ocr_pages > 0, note=note, pages=parts, page_kinds=kinds)
     finally:
         pdf.close()
