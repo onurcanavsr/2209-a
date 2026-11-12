@@ -3,6 +3,7 @@ import pytest
 
 from app import extract as ex
 from tests.test_documents import client, make_docx, store, tok, up, text_of  # noqa: F401  (store bir fixture'dır)
+from tests.test_images_extract import FakeOcr, docx_with, png
 from tests.test_pages_extract import PAGES, make_pdf_pages, make_pptx_slides
 
 
@@ -120,3 +121,83 @@ def test_other_users_document_is_not_visible(store):
 
 def test_login_required(store):
     assert client.get(f"/api/documents/{pdf_doc()}/pages/1").status_code == 401
+
+
+# ---------------- görsellerden okunan metin ----------------
+@pytest.fixture
+def ocr_acik(monkeypatch):
+    f = FakeOcr()
+    monkeypatch.setattr(ex, "get_ocr_fn", lambda: f)
+    return f
+
+
+def img_doc():
+    r = up("gorselli.docx", docx_with("Birinci sayfa metni burada.", ("img", png((10, 20, 30))), "---",
+                                      "Ikinci sayfa metni burada.", ("img", png((200, 10, 10))), ("img", png((10, 200, 10)))))
+    assert r.status_code == 202
+    return r.json()["id"]
+
+
+def image(doc_id, n, headers=None):
+    return client.get(f"/api/documents/{doc_id}/images/{n}", headers=headers or tok())
+
+
+def test_detail_lists_images_without_their_text(store, ocr_acik):
+    d = text_of(img_doc())
+    assert d["images"] == [{"page": 0, "st": "ok"}, {"page": 1, "st": "ok"}, {"page": 1, "st": "ok"}]
+    assert d["used_ocr"] is True and "3 görselde metin OCR ile okundu" in d["note"]
+    assert "page_meta" not in d and "numara" not in str(d["images"])        # metinler ayrı uç noktadan gelir
+
+
+def test_detail_note_is_translated(store, ocr_acik):
+    doc = img_doc()
+    r = client.get(f"/api/documents/{doc}", headers={**tok(), "X-Lang": "en"})
+    assert "Text was read from 3 images with OCR" in r.json()["note"]
+
+
+def test_image_endpoint_returns_text_page_and_status(store, ocr_acik):
+    doc = img_doc()
+    r = image(doc, 2)
+    assert r.status_code == 200
+    assert r.json() == {"n": 2, "count": 3, "page": 2, "text": "Gorselden okunan metin numara 2 yeterince uzun", "st": "ok"}
+    assert image(doc, 1).json()["page"] == 1 and image(doc, 3).json()["page"] == 2
+
+
+@pytest.mark.parametrize("n", [0, 4, -1])
+def test_image_out_of_range_is_404(store, ocr_acik, n):
+    doc = img_doc()
+    r = image(doc, n)
+    assert r.status_code == 404 and r.json()["detail"] == "Görsel bulunamadı"
+    assert image(doc, n, {**tok(), "X-Lang": "en"}).json()["detail"] == "Image not found"
+
+
+def test_document_without_images_gives_404(store):
+    doc = pdf_doc()
+    r = image(doc, 1)
+    assert r.status_code == 404 and r.json()["detail"] == "Bu belgede görsel yok"
+    assert text_of(doc)["images"] == []
+    assert image(doc, 1, {**tok(), "X-Lang": "en"}).json()["detail"] == "This document has no images"
+
+
+def test_image_number_must_be_integer(store, ocr_acik):
+    doc = img_doc()
+    assert client.get(f"/api/documents/{doc}/images/abc", headers=tok()).status_code == 422
+
+
+def test_other_users_images_are_not_visible(store, ocr_acik):
+    doc = img_doc()
+    assert image(doc, 1, tok("u2")).status_code == 404
+
+
+def test_images_login_required(store, ocr_acik):
+    doc = img_doc()
+    assert client.get(f"/api/documents/{doc}/images/1").status_code == 401
+
+
+def test_corrupt_images_meta_is_ignored_not_500(store, ocr_acik):
+    doc = img_doc()
+    store.docs[doc]["page_meta"]["images"] = [{"page": 99, "text": "x", "st": "ok"}, "bozuk", {"page": 0, "text": 5, "st": "ok"},
+                                              {"page": 0, "text": "gecerli kayit", "st": "tamam"}]
+    assert text_of(doc)["images"] == [] and image(doc, 1).status_code == 404
+    store.docs[doc]["page_meta"] = "bozuk"
+    assert text_of(doc)["images"] == [] and image(doc, 1).status_code == 404

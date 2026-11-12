@@ -16,6 +16,7 @@ export type Belge = {
   created_at: string;
   text_preview?: string;
   page_kinds?: ("text" | "ocr" | "image")[];   // sayfa başına: metin | OCR ile okundu | görüntü (metin okunamadı)
+  images?: { page: number; st: "ok" | "empty" | "skip" }[];   // görsellerden OCR ile metin okunanlar (belge sırasıyla; metin /images/{n} ile gelir)
   pages_approx?: boolean;                          // Word: sayfa sınırları yaklaşık
   page_word_starts?: number[];   // PDF/PowerPoint: her sayfa/slayttan önceki kelime sayısı (sayfa gezintisi)
 };

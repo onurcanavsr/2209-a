@@ -22,6 +22,7 @@ import Kartlar from "./Kartlar";
 import YerImleri from "./YerImleri";
 import VurguluMetin from "./VurguluMetin";
 import SayfaGezgini from "./SayfaGezgini";
+import GorselKutusu from "./GorselKutusu";
 
 function boyutYazi(lang: Lang, b?: number | null) {
   if (!b) return "";
@@ -182,6 +183,8 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
   const [veri, setVeri] = useState<SayfaVeri | null>(null);
   const onbellek = useRef(new Map<number, SayfaVeri>());
   const uygulananHedef = useRef<number | null>(null);
+  const gorseller = useMemo(() => doc.images ?? [], [doc.images]);
+  const [gorsel, setGorsel] = useState(0);
   const guncel = sayfali ? (veri && veri.sayfa === sayfa ? veri : onbellek.current.get(sayfa) ?? null) : null;
   const yuklendi = !sayfali || guncel !== null;
   const sayfaOfseti = guncel?.ofset ?? 0;
@@ -219,6 +222,15 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
     })();
     return () => { iptal = true; };
   }, [sayfali, sayfa, id, t]);
+
+  // Sayfadaki görsel numarasına tıklayınca görsel kutusu o görsele geçer ve görünür hâle gelir
+  function gorseleGit(i: number) {
+    setGorsel(i);
+    const el = document.getElementById("gorsel-kutusu");
+    el?.scrollIntoView?.({ block: "nearest" });
+    el?.focus?.();
+  }
+  const sayfaGorselleri = useMemo(() => gorseller.flatMap((g, i) => (g.page === sayfa ? [i] : [])), [gorseller, sayfa]);
 
   function gitSayfa(n: number) {
     if (n < 0 || n >= toplamSayfa || n === sayfa) return;
@@ -351,6 +363,16 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
       {sayfali && doc.pages_approx && (
         <p className="hint">{t("Bu Word dosyasında sayfa bilgisi kayıtlı değil; sayfalar yaklaşık olarak (≈3.000 karakter) bölündü ve Word'deki sayfa numaralarıyla birebir aynı olmayabilir.")}</p>
       )}
+      {sayfali && sayfaGorselleri.length > 0 && (
+        <div className="hint" role="group" aria-label={slayt ? t("Bu slayttaki görseller:") : t("Bu sayfadaki görseller:")}
+          style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", alignItems: "center" }}>
+          <span>📷 {slayt ? t("Bu slayttaki görseller:") : t("Bu sayfadaki görseller:")}</span>
+          {sayfaGorselleri.map((i) => (
+            <button key={i} type="button" className="btn sec" style={{ width: "auto" }} aria-label={t("{n}. görsele git", { n: i + 1 })}
+              onClick={() => gorseleGit(i)}>{i + 1}</button>
+          ))}
+        </div>
+      )}
       {sayfali && sayfaTuru === "ocr" && (
         <p className="hint" role="note" style={{ borderLeft: "4px solid currentColor", paddingLeft: "0.6rem" }}>
           <strong>OCR</strong> — {t("Bu sayfa görüntü (tarama veya fotoğraf) olduğu için OCR ile okundu. Okuma hataları olabilir.")}
@@ -369,6 +391,10 @@ function MetinPaneli({ id, doc, mod, hedef }: { id: string; doc: Belge; mod: "di
         <p className="hint">{slayt ? t("Bu slaytta metin yok.") : t("Bu sayfada metin yok (görsel bir sayfa olabilir).")}</p>
       )}
       {sayfali && <SayfaGezgini kompakt sayfa={sayfa} toplam={toplamSayfa} slayt={slayt} onGit={gitSayfa} />}
+      {mod === "metin" && gorseller.length > 0 && (
+        <GorselKutusu docId={id} gorseller={gorseller} gorsel={Math.min(gorsel, gorseller.length - 1)} onGit={setGorsel}
+          onSayfa={(s) => { gitSayfa(s); metinKap.current?.scrollIntoView?.({ block: "nearest" }); }} slayt={slayt} />
+      )}
       {mod === "metin" && !sayfali && doc.status === "ready" && ["pdf", "pptx", "docx"].includes(doc.kind) && (
         <p className="hint">{t("Bu belge için sayfa bilgisi yok (sayfa gezintisi eklenmeden önce yüklenmiş olabilir). Sayfa sayfa görmek için belgeyi silip yeniden yükleyin.")}</p>
       )}

@@ -1,8 +1,10 @@
 """Belgeden metin çıkarma. Dosyalar diske yazılmaz, bellekte işlenir.
 Tüm ExtractError mesajları kullanıcıya gösterilebilir (Türkçe) metinlerdir."""
+import hashlib
 import io
 import re
 import shutil
+import time
 import zipfile
 from dataclasses import dataclass
 from functools import lru_cache
@@ -35,6 +37,7 @@ class Extracted:
     page_starts: list[int] | None = None   # her sayfanın `text` içindeki başlangıç karakteri (sayfa gezintisi için)
     page_kinds: list[str] | None = None    # sayfa başına: "text" | "ocr" (görüntüden OCR ile okundu) | "image" (görüntü, metin okunamadı)
     pages_approx: bool = False             # Word: sayfa sınırları yaklaşık (dosyada yerleşim bilgisi yok)
+    images: list[dict] | None = None       # görsellerden OCR ile okunan metin: [{"page": 0 tabanlı sayfa, "text": ..., "st": "ok"|"empty"|"skip"}]
 
 
 def clean_filename(name: str | None) -> str:
@@ -78,6 +81,177 @@ def tesseract_ocr(img) -> str:
 def get_ocr_fn():
     """Testlerde değiştirilebilsin diye çağrı anında çözülür."""
     return tesseract_ocr if ocr_available() else None
+
+
+# ---------------- görsellerden (resim/fotoğraf/ekran görüntüsü) metin okuma ----------------
+MAX_IMAGE_ENTRIES = 200      # bir belgede kaydedilecek en çok görsel
+MAX_IMAGE_PIXELS = 40_000_000
+RENDER_SCALE = 200 / 72
+
+
+def _prep_for_ocr(img):
+    """OCR için hazırlık: saydamlığı beyaza oturt, gri tona çevir, koyu zemini ters çevir (koyu temalı ekran görüntüleri),
+    küçük görselleri büyüt, çok büyükleri küçült."""
+    from PIL import Image, ImageOps, ImageStat
+
+    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        rgba = img.convert("RGBA")
+        bg = Image.new("RGBA", rgba.size, "white")
+        bg.alpha_composite(rgba)
+        img = bg
+    g = img.convert("L")
+    if ImageStat.Stat(g).mean[0] < 100:
+        g = ImageOps.invert(g)
+    w, h = g.size
+    if w < 900:
+        f = min(3.0, 1200 / w)
+        g = g.resize((max(1, int(w * f)), max(1, int(h * f))), Image.LANCZOS)
+    elif max(w, h) > 4000:
+        f = 4000 / max(w, h)
+        g = g.resize((max(1, int(w * f)), max(1, int(h * f))), Image.LANCZOS)
+    return g
+
+
+def _clean_ocr(text: str) -> str:
+    """Fotoğraf/çizimlerden gelen gürültüyü (çizgi, simge, anlamsız karakterler) süzer; geriye anlamlı bir şey kalmazsa boş döner."""
+    lines: list[str] = []
+    for ln in (text or "").replace("\r", "\n").split("\n"):
+        s = ln.strip()
+        if not s:
+            if lines and lines[-1] != "":
+                lines.append("")
+            continue
+        alnum = sum(c.isalnum() for c in s)
+        if alnum >= 2 and alnum / len(s) >= 0.45:
+            lines.append(s)
+    out = "\n".join(lines).strip()
+    words = re.findall(r"\w+", out)
+    return out if (sum(1 for w in words if len(w) >= 3) >= 2 or any(len(w) >= 5 for w in words)) else ""
+
+
+def _open_image(blob: bytes):
+    """Görsel baytlarını açar; desteklenmeyen biçim (EMF/WMF/SVG) veya aşırı büyük görselde None."""
+    try:
+        from PIL import Image
+
+        im = Image.open(io.BytesIO(blob))
+        if im.width * im.height > MAX_IMAGE_PIXELS:
+            return None
+        im.load()
+        return im
+    except Exception:
+        return None
+
+
+class _ImageReader:
+    """Belgedeki görsellerden OCR ile metin okur. Bütçe (en çok N görsel + toplam süre), aynı görselin tekrarı için önbellek
+    ve gürültü süzme burada. Her görsel için bir kayıt tutulur: okunamayan da kaydedilir (kullanıcı görselin var olduğunu görsün)."""
+
+    def __init__(self, ocr):
+        s = get_settings()
+        self.ocr = ocr
+        self.budget = s.ocr_max_images
+        self.min_px = s.ocr_min_image_px
+        self.max_chars = s.image_text_max_chars
+        self.deadline = time.monotonic() + s.ocr_images_seconds
+        self.cache: dict[str, tuple[str, str]] = {}
+        self.items: list[dict] = []
+
+    def exhausted(self) -> bool:
+        return self.budget <= 0 or time.monotonic() > self.deadline
+
+    def add_skipped(self, page: int) -> None:
+        """Okunmayacak görsel (bütçe/süre bitti): sayfa çizilmeden yalnızca 'okunmadı' olarak kaydedilir."""
+        if len(self.items) < MAX_IMAGE_ENTRIES:
+            self.items.append({"page": page, "text": "", "st": "skip"})
+
+    def add(self, page: int, img, key: str | None = None) -> None:
+        if len(self.items) >= MAX_IMAGE_ENTRIES or min(img.size) < self.min_px:
+            return                                           # simge / madde işareti
+        if key is None:
+            key = hashlib.sha1(img.convert("L").tobytes()).hexdigest()
+        if key in self.cache:
+            st, text = self.cache[key]
+        elif self.budget <= 0 or time.monotonic() > self.deadline:
+            st, text = "skip", ""
+        else:
+            self.budget -= 1
+            try:
+                text = _clean_ocr(self.ocr(_prep_for_ocr(img)) or "")[: self.max_chars]
+            except Exception:
+                text = ""
+            st = "ok" if text else "empty"
+            self.cache[key] = (st, text)
+        self.items.append({"page": page, "text": text, "st": st})
+
+
+def _pdf_page_images(page, i: int, reader: _ImageReader) -> None:
+    """Metinli bir PDF sayfasındaki resimleri bulur (üstten alta, soldan sağa) ve sayfadan kırparak OCR'a verir.
+    Sayfayı kaplayan tarama zeminleri (zaten metin katmanı var) ve simgeler atlanır."""
+    import pypdfium2.raw as pr
+
+    try:
+        if page.get_rotation() != 0:
+            return
+        W, H = page.get_size()
+        cand = []
+        for o in page.get_objects(filter=[pr.FPDF_PAGEOBJ_IMAGE], max_depth=4):
+            l, b, r, t = (getattr(o, "get_bounds", None) or o.get_pos)()      # pypdfium2 5.x: get_bounds, 4.x: get_pos
+            w, h = r - l, t - b
+            if w < 36 or h < 36 or w * h > 0.85 * W * H:
+                continue
+            cand.append((t, l, b, r))
+        if not cand:
+            return
+        cand.sort(key=lambda c: (-c[0], c[1]))
+        if reader.exhausted():                       # bütçe/süre bitti: sayfayı çizmeye gerek yok
+            for _ in cand[:8]:
+                reader.add_skipped(i)
+            return
+        bitmap = page.render(scale=RENDER_SCALE).to_pil().convert("RGB")
+        for t, l, b, r in cand[:8]:
+            box = (max(0, int(l * RENDER_SCALE)), max(0, int((H - t) * RENDER_SCALE)),
+                   min(bitmap.width, int(r * RENDER_SCALE)), min(bitmap.height, int((H - b) * RENDER_SCALE)))
+            if box[2] - box[0] > 0 and box[3] - box[1] > 0:
+                reader.add(i, bitmap.crop(box))
+    except Exception:
+        return
+
+
+_A_BLIP = "{http://schemas.openxmlformats.org/drawingml/2006/main}blip"
+_R_EMBED = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed"
+_R_ID = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+_V_IMAGEDATA = "{urn:schemas-microsoft-com:vml}imagedata"
+
+
+def _image_rids(el) -> list[str]:
+    """Bir Word öğesindeki (paragraf/tablo satırı) resim ilişki kimlikleri, belge sırasıyla (tekrarsız)."""
+    out: list[str] = []
+    for x in el.iter():
+        rid = x.get(_R_EMBED) if x.tag == _A_BLIP else x.get(_R_ID) if x.tag == _V_IMAGEDATA else None
+        if rid:
+            out.append(rid)
+    return list(dict.fromkeys(out))
+
+
+def _pptx_pictures(shapes):
+    """Slayttaki resimlerin baytları (gruplar dahil), üstten alta sırasıyla."""
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+    found = []
+
+    def walk(shs):
+        for sh in shs:
+            if sh.shape_type == MSO_SHAPE_TYPE.GROUP:
+                walk(sh.shapes)
+            elif sh.shape_type == MSO_SHAPE_TYPE.PICTURE or type(sh).__name__ == "PlaceholderPicture":
+                try:
+                    found.append(((sh.top or 0, sh.left or 0), sh.image.blob))
+                except Exception:
+                    pass
+
+    walk(shapes)
+    return [b for _, b in sorted(found, key=lambda x: x[0])]
 
 
 # ---------------- güvenlik ----------------
@@ -191,6 +365,7 @@ def _pdf(data: bytes) -> Extracted:
         if n > s.max_pages:
             raise ExtractError(f"PDF en fazla {s.max_pages} sayfa olabilir (bu dosya {n} sayfa).")
         ocr = get_ocr_fn()
+        reader = _ImageReader(ocr) if ocr is not None else None
         parts: list[str] = []
         kinds: list[str] = []
         ocr_pages = image_pages = 0
@@ -217,6 +392,8 @@ def _pdf(data: bytes) -> Extracted:
                         kind = "text"       # OCR uygulanmadı ama sayfada kısa gerçek metin var (ör. sayfa numarası)
                 parts.append(t)
                 kinds.append(kind)
+                if reader is not None and kind == "text":
+                    _pdf_page_images(page, i, reader)       # metinli sayfadaki fotoğraf/resimler
             finally:
                 page.close()
         parts, legacy_fixed = _fix_legacy_turkish(parts, kinds, pdf)
@@ -227,7 +404,8 @@ def _pdf(data: bytes) -> Extracted:
                 note += f" OCR en fazla {s.ocr_max_pages} sayfa için uygulanır, kalan görsel sayfalar atlandı."
         if legacy_fixed:
             note = f"{note} {LEGACY_FIX_NOTE}" if note else LEGACY_FIX_NOTE
-        return Extracted("\n\n".join(parts), page_count=n, used_ocr=ocr_pages > 0, note=note, pages=parts, page_kinds=kinds)
+        return Extracted("\n\n".join(parts), page_count=n, used_ocr=ocr_pages > 0, note=note, pages=parts, page_kinds=kinds,
+                         images=(reader.items or None) if reader is not None else None)
     finally:
         pdf.close()
 
@@ -303,19 +481,21 @@ def _split_marks(base: str, mine: str, marks):
     return pre, pieces, post
 
 
-def _chunk_pages(pages: list[list[str]]) -> tuple[list[list[str]], bool]:
-    """Yerleşim bilgisi olmayan Word dosyası: uzun sayfaları paragraf sınırlarında ~APPROX_PAGE_CHARS karakterlik parçalara böler."""
-    out: list[list[str]] = []
+def _chunk_pages(pages: list[list]) -> tuple[list[list], bool]:
+    """Yerleşim bilgisi olmayan Word dosyası: uzun sayfaları paragraf sınırlarında ~APPROX_PAGE_CHARS karakterlik parçalara böler.
+    Sayfa öğeleri metin satırı (str) veya görsel işareti (("img", k)) olabilir; görseller bulundukları satırla birlikte taşınır."""
+    out: list[list] = []
     split = False
-    for lines in pages:
-        cur: list[str] = []
+    for entries in pages:
+        cur: list = []
         n = 0
-        for ln in lines:
-            if cur and n + len(ln) > APPROX_PAGE_CHARS:
-                out.append(cur)
-                cur, n, split = [], 0, True
-            cur.append(ln)
-            n += len(ln) + 1
+        for e in entries:
+            if isinstance(e, str):
+                if cur and n + len(e) > APPROX_PAGE_CHARS:
+                    out.append(cur)
+                    cur, n, split = [], 0, True
+                n += len(e) + 1
+            cur.append(e)
         if cur:
             out.append(cur)
     return out, split
@@ -332,8 +512,16 @@ def _docx(data: bytes) -> Extracted:
     except Exception:
         raise ExtractError("Word dosyası açılamadı (bozuk olabilir).")
     out: list[str] = []                 # tüm metin (sayfa gezintisinden bağımsız, eskisiyle aynı)
-    pages: list[list[str]] = [[]]       # sayfa gezintisi için satırlar
+    pages: list[list] = [[]]            # sayfa gezintisi için öğeler: metin satırı (str) veya görsel işareti ("img", k)
+    raw_imgs: list[tuple[str, bytes]] = []
     rendered = False
+
+    def add_images(rids) -> None:
+        for rid in rids:
+            blob = getattr(doc.part.related_parts.get(rid), "blob", None)
+            if blob:
+                raw_imgs.append((hashlib.sha1(blob).hexdigest(), blob))
+                pages[-1].append(("img", len(raw_imgs) - 1))
 
     def brk(kind: str) -> None:
         nonlocal rendered
@@ -354,9 +542,11 @@ def _docx(data: bytes) -> Extracted:
                 ty = ppr.find(_W + "sectPr").find(_W + "type")
                 sect_after = ty is None or ty.get(_W + "val") != "continuous"
             mine, marks = _para_scan(child)
+            rids = _image_rids(child)
             if not base:
                 for _, kind in marks:       # yalnızca sayfa sonu içeren paragraf
                     brk(kind)
+                add_images(rids)            # yalnızca resim içeren paragraf
                 if sect_after:
                     brk("explicit")
                 continue
@@ -372,6 +562,7 @@ def _docx(data: bytes) -> Extracted:
             pre, pieces, post = _split_marks(base, mine, marks)
             for kind in pre:
                 brk(kind)
+            add_images(rids)
             for i, (kind, piece) in enumerate(pieces):
                 if kind:
                     brk(kind)
@@ -383,17 +574,31 @@ def _docx(data: bytes) -> Extracted:
         elif tag == "tbl":
             for row in Table(child, doc).rows:
                 cells = _dedupe_cells([c.text.strip().replace("\n", " ") for c in row.cells])
-                if any(cells):
-                    line = " | ".join(cells)
+                rids = _image_rids(row._tr)
+                if any(cells) or rids:
                     if row._tr.find(".//" + _W + "lastRenderedPageBreak") is not None:
                         brk("rendered")
-                    out.append(line)
-                    pages[-1].append(line)
-    page_lines = [p for p in pages if p]
+                    add_images(rids)
+                    if any(cells):
+                        line = " | ".join(cells)
+                        out.append(line)
+                        pages[-1].append(line)
+    page_entries = [p for p in pages if p]
     approx = False
     if not rendered:                    # Word yerleşimi kayıtlı değil (Word dışı program): uzun sayfalar yaklaşık bölünür
-        page_lines, approx = _chunk_pages(page_lines)
-    return Extracted("\n".join(out), pages=["\n".join(p) for p in page_lines], pages_approx=approx)
+        page_entries, approx = _chunk_pages(page_entries)
+    images = None
+    ocr = get_ocr_fn()
+    if raw_imgs and ocr is not None:    # görsellerden OCR: sayfa numarası, sayfa yapısı kesinleştikten sonra bilinir
+        img_page = {e[1]: pi for pi, p in enumerate(page_entries) for e in p if not isinstance(e, str)}
+        reader = _ImageReader(ocr)
+        for k, (key, blob) in enumerate(raw_imgs):
+            im = _open_image(blob) if k in img_page else None
+            if im is not None:
+                reader.add(img_page[k], im, key)
+        images = reader.items or None
+    texts = ["\n".join(e for e in p if isinstance(e, str)) for p in page_entries]    # yalnızca görselli sayfa: boş metin
+    return Extracted("\n".join(out), pages=texts, pages_approx=approx, images=images)
 
 
 def _walk_shapes(shapes):
@@ -414,6 +619,8 @@ def _pptx(data: bytes) -> Extracted:
         raise ExtractError("PowerPoint dosyası açılamadı (bozuk olabilir).")
     out: list[str] = []
     slides: list[str] = []   # slayt başına metin (sayfa gezintisi için)
+    ocr = get_ocr_fn()
+    reader = _ImageReader(ocr) if ocr is not None else None
     for i, slide in enumerate(prs.slides, 1):
         basla = len(out)
         out.append(f"[Slayt {i}]")
@@ -431,8 +638,14 @@ def _pptx(data: bytes) -> Extracted:
             n = slide.notes_slide.notes_text_frame.text.strip()
             if n:
                 out.append("Konuşmacı notu: " + n)
+        if reader is not None:
+            for blob in _pptx_pictures(slide.shapes):          # slayttaki resimler
+                im = _open_image(blob)
+                if im is not None:
+                    reader.add(i - 1, im, hashlib.sha1(blob).hexdigest())
         slides.append("\n".join(out[basla:]))
-    return Extracted("\n".join(out), page_count=len(prs.slides), pages=slides)
+    return Extracted("\n".join(out), page_count=len(prs.slides), pages=slides,
+                     images=(reader.items or None) if reader is not None else None)
 
 
 def _normalize(text: str) -> str:
@@ -526,4 +739,17 @@ def extract(kind: str, data: bytes) -> Extracted:
         res.truncated = True
         extra = f"Belge çok uzun olduğu için ilk {s.max_text_chars:,} karakter alındı.".replace(",", ".")
         res.note = f"{res.note} {extra}" if res.note else extra
+    if res.images is not None:                      # görseller yalnızca sayfa bilgisi olan (metne alınan) sayfalar için tutulur
+        n_pages = len(res.page_starts) if res.page_starts else 0
+        res.images = [im for im in res.images if im["page"] < n_pages] or None
+    if res.images:
+        ok = sum(1 for im in res.images if im["st"] == "ok")
+        notes = []
+        if ok:
+            res.used_ocr = True
+            notes.append(f"{ok} görselde metin OCR ile okundu; okuma hataları olabilir.")
+        if any(im["st"] == "skip" for im in res.images):
+            notes.append(f"OCR en fazla {s.ocr_max_images} görsel için uygulanır, kalan görseller atlandı.")
+        if notes:
+            res.note = " ".join(([res.note] if res.note else []) + notes)
     return res

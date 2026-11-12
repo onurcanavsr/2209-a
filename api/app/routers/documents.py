@@ -55,6 +55,16 @@ def _page_meta(doc: dict, n: int) -> tuple[list[str], bool]:
     return kinds, bool(meta.get("approx"))
 
 
+def _images_meta(doc: dict, n_pages: int) -> list[dict]:
+    """Görsellerden OCR ile okunan metinler (belge sırasıyla). Bozuk/geçersiz kayıtlar atlanır."""
+    meta = doc.get("page_meta")
+    imgs = meta.get("images") if isinstance(meta, dict) else None
+    if not isinstance(imgs, list):
+        return []
+    return [im for im in imgs if isinstance(im, dict) and type(im.get("page")) is int and 0 <= im["page"] < n_pages
+            and isinstance(im.get("text"), str) and im.get("st") in ("ok", "empty", "skip")]
+
+
 def _uuid(doc_id: str) -> str:
     try:
         return str(uuid.UUID(doc_id))
@@ -70,7 +80,7 @@ async def _process(store, user_id: str, doc_id: str, kind: str, data: bytes) -> 
             "status": "ready", "raw_text": res.text, "page_count": res.page_count,
             "char_count": len(res.text), "used_ocr": res.used_ocr,
             "truncated": res.truncated, "note": res.note, "error": None, "page_starts": res.page_starts,
-            "page_meta": {"kinds": res.page_kinds, "approx": res.pages_approx} if res.page_starts else None})
+            "page_meta": {"kinds": res.page_kinds, "approx": res.pages_approx, "images": res.images or []} if res.page_starts else None})
     except ExtractError as e:
         await _fail(store, user_id, doc_id, str(e))
     except Exception:
@@ -151,7 +161,24 @@ async def get_document(doc_id: str, user: CurrentUser = Depends(get_current_user
     if starts and raw:   # sayfa/slayt gezintisi: her sayfadan önceki kelime sayısı (yer imi sıraları için)
         out["page_word_starts"] = sayfa_kelime_baslangiclari(raw, starts)
         out["page_kinds"], out["pages_approx"] = _page_meta(doc, len(starts))
+        out["images"] = [{"page": im["page"], "st": im["st"]} for im in _images_meta(doc, len(starts))]   # metinler /images/{n} ile gelir
     return out
+
+
+@router.get("/{doc_id}/images/{n}")
+async def get_image_text(doc_id: str, n: int, user: CurrentUser = Depends(get_current_user), store=Depends(get_store)):
+    """Belgedeki n. görselden (1 tabanlı, belge sırasıyla) OCR ile okunan metin ve görselin bulunduğu sayfa."""
+    doc = await store.get_document(_uuid(doc_id), user.id)
+    if not doc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Belge bulunamadı")
+    starts = gecerli_baslangiclar(doc.get("page_starts"), len(doc.get("raw_text") or ""))
+    imgs = _images_meta(doc, len(starts)) if starts else []
+    if not imgs:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Bu belgede görsel yok")
+    if not 1 <= n <= len(imgs):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Görsel bulunamadı")
+    im = imgs[n - 1]
+    return {"n": n, "count": len(imgs), "page": im["page"] + 1, "text": im["text"], "st": im["st"]}
 
 
 @router.get("/{doc_id}/pages/{page}")

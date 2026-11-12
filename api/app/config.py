@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     tts_concurrency: int = 3
     max_pages: int = 300
     ocr_max_pages: int = 40
+    ocr_max_images: int = 40              # belgedeki görsellerden (resim/fotoğraf) OCR ile okunacak en çok görsel sayısı
+    ocr_min_image_px: int = 48            # bundan küçük görseller (simge, madde işareti) okunmaz
+    ocr_images_seconds: int = 240         # görsellerin OCR'ı için toplam süre bütçesi (aşılırsa kalanlar atlanır)
+    image_text_max_chars: int = 6000      # tek görselden saklanacak en çok karakter
     max_text_chars: int = 400_000
     max_uncompressed_mb: int = 300
     max_concurrent_extractions: int = 2
