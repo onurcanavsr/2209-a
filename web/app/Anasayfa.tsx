@@ -35,6 +35,7 @@ export default async function Anasayfa() {
         <div className="tools">
           <Araclar />
           <Link href="/giris" className="ana-btn ikinci">{t("Giriş yap")}</Link>
+          {KAYIT_ACIK && <Link href="/kayit" className="ana-btn">{t("Kayıt ol")}</Link>}
         </div>
       </header>
 
