@@ -25,7 +25,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer
 
-BRAND = "Sentez"
+BRAND = "yzders"
 FONT = "DejaVuSans"
 FONT_BOLD = "DejaVuSans-Bold"
 FONT_DIRS = (

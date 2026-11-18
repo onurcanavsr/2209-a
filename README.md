@@ -1,4 +1,4 @@
-# Akademik Asistan
+# yzders – Yapay Zeka Destekli Sesli Komutlarla Etkileşimli Ders Uygulaması
 
 Yapay zekâ destekli, erişilebilir akademik içerik platformu (TÜBİTAK 2209-A).
 

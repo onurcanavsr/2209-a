@@ -44,7 +44,7 @@ export default function Kabuk({ admin, eposta, children }: { admin: boolean; epo
             onClick={() => setAcik((a) => !a)}>
             <span aria-hidden="true">☰</span> {t("Menü")}
           </button>
-          <Link href="/" className="brand"><span className="logo" aria-hidden="true">{SITE_ADI[0]}</span>{SITE_ADI}</Link>
+          <Link href="/" className="brand"><img src="/logo-amblem.png" alt="" className="brand-img" width={44} height={36} />{SITE_ADI}</Link>
           <BelgeEtiketi />
           <div className="tools">
             {process.env.NEXT_PUBLIC_SESLI_KOMUT === "true" && <SesDugmesi admin={admin} />}

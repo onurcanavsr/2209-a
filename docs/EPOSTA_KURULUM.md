@@ -1,45 +1,53 @@
-# E-posta ve Supabase Ayarları (sizin yapacağınız adımlar)
+# E-posta (Brevo), Cloudflare ve Supabase Ayarları – yzders.com
 
 Supabase'in yerleşik e-posta servisi çok düşük sınırlıdır ve gerçek kullanıcılara güvenilir
-ulaşmaz. Doğrulama ve parola sıfırlama e-postaları için kendi alan adınızdan gönderen bir
-servis bağlayacağız.
+ulaşmaz. Doğrulama ve parola sıfırlama e-postaları için Brevo üzerinden kendi alan adınızdan
+(`noreply@yzders.com`) göndereceğiz.
 
-## 1. E-posta servisi (Resend veya Brevo)
-1. Hesap açın, **alan adı ekleyin**: `sentezapp.com.tr`
-2. Servis size birkaç **DNS kaydı** verir (SPF ve DKIM; bazen bir MX/TXT daha).
-   Bunları Türk Ticaret DNS panelinden, servisin gösterdiği tür/ad/değerle aynen ekleyin.
-3. Servis panelinde "Verify/Doğrula"ya basın (DNS yayılması dakikalar-saatler sürebilir).
-4. Bir **SMTP bilgisi veya API anahtarı** oluşturun. Servisin belgesindeki güncel SMTP
-   sunucu/port/kullanıcı bilgilerini kullanın. Ücretsiz günlük gönderim sınırını kontrol edin.
+## 1. Cloudflare DNS (alan adı yzders.com)
+Cloudflare → yzders.com → **DNS → Records**:
 
-## 2. Supabase'e bağlama
+| Tür | Ad | Değer | Proxy |
+|---|---|---|---|
+| A | `@` | Sunucunun IP adresi | Proxied (turuncu bulut) |
+| CNAME | `www` | `yzders.com` | Proxied |
+| A | `api` | Sunucunun IP adresi | **DNS only (gri bulut)** |
+
+- `api` kaydını gri bulut yapmanız önerilir: Cloudflare, proxy üzerinden gelen isteklerde yaklaşık
+  100 saniyede zaman aşımına uğrar; uzun özet/akış yanıtları kesilebilir.
+- **SSL/TLS → Overview** modu: **Full (strict)**. Sertifikayı sunucudaki Caddy otomatik alır.
+- Sunucuda güvenlik duvarında 80 ve 443 portları açık olmalıdır.
+
+## 2. Brevo ile alan adı doğrulama
+1. Brevo → **Senders, Domains & Dedicated IPs → Domains → Add a domain** → `yzders.com`.
+2. Brevo size **DNS kayıtları** verir (brevo-code TXT, DKIM CNAME'leri, DMARC TXT). Bunları Cloudflare
+   DNS'e **tür/ad/değeri aynen** ekleyin. **Hepsi "DNS only" (gri bulut) olmalıdır.**
+3. Brevo'da **Authenticate / Doğrula**'ya basın (yayılma dakikalar-saatler sürebilir).
+4. **Senders** bölümünde `noreply@yzders.com` göndericisini ekleyin.
+5. **SMTP & API → SMTP** sekmesinden bir **SMTP anahtarı** oluşturun. Güncel sunucu/port/kullanıcı
+   bilgisini orada görürsünüz (genelde `smtp-relay.brevo.com`, port `587`). Ücretsiz günlük
+   gönderim sınırını kontrol edin.
+
+## 3. Supabase'e bağlama
 **Authentication → Emails → SMTP Settings → Enable custom SMTP**
-- Sender email: `noreply@sentezapp.com.tr`, Sender name: `Sentez`
-- Host / Port / Username / Password: servisten aldığınız bilgiler
+- Sender email: `noreply@yzders.com`, Sender name: `yzders`
+- Host / Port / Username / Password: Brevo SMTP sayfasındaki bilgiler (şifre = SMTP anahtarı)
 
-## 3. URL ayarları (çok önemli)
+## 4. URL ayarları (çok önemli)
 **Authentication → URL Configuration**
-- **Site URL:** `https://sentezapp.com.tr`
-- **Redirect URLs:** `https://sentezapp.com.tr/auth/callback` ve (yerel geliştirme için)
+- **Site URL:** `https://yzders.com`
+- **Redirect URLs:** `https://yzders.com/auth/callback` ve (yerel geliştirme için)
   `http://localhost:3000/auth/callback`
 
-## 4. E-posta şablonları
-**Authentication → Emails → Templates** altında üç şablonu, `supabase/email-templates/`
-klasöründeki dosyalarla değiştirin (konu satırı dosyanın ilk satırındaki yorumda yazar):
-Confirm signup, Reset password, Invite user.
+## 5. Sunucu
+`.env` dosyasında `DOMAIN=yzders.com` yapın, sonra yeniden derleyip başlatın:
 
-## 5. Kayıt politikası
-- **Herkese açık kayıt:** `.env`'de `REGISTRATION_OPEN=true` ve Supabase'de
-  *Sign In / Providers → Allow new users to sign up* AÇIK.
-- **Yalnızca davetle (başlangıç için önerilir):** `REGISTRATION_OPEN=false` ve Supabase'de
-  *Allow new users to sign up* KAPALI. Kullanıcı eklemek için
-  *Authentication → Users → Invite user* kullanın.
-- Her iki durumda **Confirm email** AÇIK kalmalı.
-- Kayıt değişikliklerinde siteyi yeniden yayınlayın (`REGISTRATION_OPEN` derleme sırasında okunur).
+```
+docker compose -f docker-compose.prod.yml up -d --build
+```
 
-## 6. Test listesi
-1. Yeni e-postayla kayıt (veya davet) → e-posta geldi mi, bağlantı siteye döndürüp giriş yaptırıyor mu?
-2. E-postayı **telefonda** açın (farklı cihaz) → yine çalışmalı.
-3. "Parolamı unuttum" → yeni parola → giriş.
-4. Hesabım → hesabı sil → Supabase Users listesinden kullanıcı kaybolmuş olmalı.
-5. Yönetici olmayan hesapla `/admin` → ana sayfaya yönlenmeli.
+(`CORS_ORIGINS`, Caddy ve site adresleri `DOMAIN` değerinden otomatik türetilir.)
+
+## 6. E-posta şablonları
+`supabase/email-templates/` içindeki 3 şablonu Supabase → **Authentication → Emails → Templates**
+bölümündeki ilgili şablonlara yapıştırın (konu satırları dosyaların ilk satırında yazar).

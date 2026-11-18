@@ -27,7 +27,7 @@ export default async function Anasayfa() {
   return (
     <div className="ana">
       <header className="ana-ust">
-        <Link href="/" className="brand"><span className="logo" aria-hidden="true">{SITE_ADI[0]}</span>{SITE_ADI}</Link>
+        <Link href="/" className="brand"><img src="/logo-amblem.png" alt="" className="brand-img" width={44} height={36} />{SITE_ADI}</Link>
         <nav aria-label={t("Sayfa içi")} className="ana-nav">
           <a href="#ozellikler">{t("Özellikler")}</a>
           <a href="#nasil">{t("Nasıl çalışır")}</a>
@@ -35,7 +35,6 @@ export default async function Anasayfa() {
         <div className="tools">
           <Araclar />
           <Link href="/giris" className="ana-btn ikinci">{t("Giriş yap")}</Link>
-          {KAYIT_ACIK && <Link href="/kayit" className="ana-btn">{t("Kayıt ol")}</Link>}
         </div>
       </header>
 

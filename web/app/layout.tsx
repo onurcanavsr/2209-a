@@ -3,12 +3,17 @@ import Link from "next/link";
 import Araclar from "./components/Araclar";
 import Kabuk from "./components/Kabuk";
 import { createClient } from "@/lib/supabase/server";
-import { SITE_ADI } from "@/lib/site";
+import { SITE_ADI, SITE_ACIKLAMA, SITE_URL } from "@/lib/site";
 import { LangProvider } from "@/lib/i18n/client";
 import { getLang } from "@/lib/i18n/server";
 import { makeT } from "@/lib/i18n/core";
 
-export const metadata = { title: SITE_ADI };
+export const metadata = {
+  metadataBase: new URL(SITE_URL),
+  title: { default: `${SITE_ADI} – ${SITE_ACIKLAMA}`, template: `%s · ${SITE_ADI}` },
+  description: SITE_ACIKLAMA,
+  openGraph: { title: SITE_ADI, description: SITE_ACIKLAMA, images: ["/logo-tam.png"] },
+};
 
 const ONCEDEN_UYGULA = `try{var t=localStorage.getItem("tema"),b=localStorage.getItem("boyut"),r=document.documentElement;if(t&&t!=="auto")r.setAttribute("data-theme",t);if(b)r.style.setProperty("--fs",b+"px")}catch(e){}`;
 
@@ -33,7 +38,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         ) : (
           <>
             <header className="ust ust-sade">
-              <Link href="/" className="brand"><span className="logo" aria-hidden="true">{SITE_ADI[0]}</span>{SITE_ADI}</Link>
+              <Link href="/" className="brand"><img src="/logo-amblem.png" alt="" className="brand-img" width={44} height={36} />{SITE_ADI}</Link>
               <div className="tools"><Araclar /></div>
             </header>
             <main id="icerik" className="sade">{children}</main>

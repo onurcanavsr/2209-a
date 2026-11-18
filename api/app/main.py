@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     await get_store().close()
 
 
-app = FastAPI(title="Akademik Asistan API", version="0.5.0", lifespan=lifespan)
+app = FastAPI(title="yzders API", version="0.5.0", lifespan=lifespan)
 
 async def _is_active(user_id: str) -> bool | None:
     p = await get_store().get_profile(user_id)

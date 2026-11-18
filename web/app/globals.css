@@ -10,7 +10,8 @@ a{color:var(--pri)}
 .skip:focus{left:8px}
 .sr{position:absolute;left:-999px}
 .brand{font-weight:700;font-size:1.1rem;display:flex;gap:10px;align-items:center;color:var(--txt);text-decoration:none}
-.logo{width:34px;height:34px;border-radius:10px;background:var(--pri);color:var(--pri-t);display:grid;place-items:center;font-weight:700}
+.brand-img{height:40px;width:auto;background:#fff;border-radius:10px;padding:3px 5px;border:1px solid var(--bd)}
+.login-logo{display:block;margin:0 auto 8px;width:150px;height:auto;background:#fff;border-radius:14px;padding:8px}
 h1{font-size:1.6rem;margin:0 0 8px}h2{font-size:1.15rem;margin:22px 0 8px}
 .card{background:var(--surf);border:1px solid var(--bd);border-radius:16px;padding:22px}
 .login{max-width:440px;margin:32px auto}

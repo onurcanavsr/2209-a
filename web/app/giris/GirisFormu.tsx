@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { SITE_ADI } from "@/lib/site";
 import { useT } from "@/lib/i18n/client";
 
 export default function GirisFormu({ bilgi, hata, kayitAcik }: { bilgi?: string; hata?: string; kayitAcik: boolean }) {
@@ -27,6 +28,7 @@ export default function GirisFormu({ bilgi, hata, kayitAcik }: { bilgi?: string;
 
   return (
     <form className="card login" onSubmit={onSubmit}>
+      <img src="/logo-tam.png" alt={SITE_ADI} className="login-logo" width={200} height={187} />
       <h1>{t("Hoş geldiniz")}</h1>
       <p>{t("Devam etmek için giriş yapın.")}</p>
       {bilgi === "silindi" && <p className="msg ok" role="status">{t("Hesabınız ve verileriniz silindi.")}</p>}
