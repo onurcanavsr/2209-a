@@ -152,7 +152,7 @@ export default function Calisma() {
       <h1>{t("Çalışma Alanı")}</h1>
       <p className="sub">{t("PDF, Word veya PowerPoint belgenizi yükleyin ya da bir YouTube bağlantısı ekleyin; metni çıkaralım.")}</p>
 
-      <section className="card" aria-labelledby="yukle-baslik">
+      <section className="card" aria-labelledby="yukle-baslik" data-tur="yukle">
         <h2 id="yukle-baslik" style={{ marginTop: 0 }}>{t("Belge yükle")}</h2>
         <div className={"drop" + (drag ? " drag" : "")}
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
@@ -166,7 +166,7 @@ export default function Calisma() {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) gonder(f); }} />
           <p className="hint">{t("Taranmış PDF’ler OCR ile okunur ve hata içerebilir.")}</p>
         </div>
-        <form onSubmit={youtubeEkle} aria-labelledby="yt-baslik" style={{ marginTop: 20 }}>
+        <form onSubmit={youtubeEkle} aria-labelledby="yt-baslik" data-tur="youtube" style={{ marginTop: 20 }}>
           <h3 id="yt-baslik" style={{ margin: "0 0 8px" }}>{t("YouTube videosu ekle")}</h3>
           <label htmlFor="yt-url">{t("YouTube bağlantısı")}</label>
           <div className="row">
@@ -182,7 +182,7 @@ export default function Calisma() {
         <div role="alert" aria-live="assertive">{error && <p className="msg err">{error}</p>}</div>
       </section>
 
-      <section aria-labelledby="liste-baslik" style={{ marginTop: 24 }}>
+      <section aria-labelledby="liste-baslik" data-tur="belgeler" style={{ marginTop: 24 }}>
         <h2 id="liste-baslik">{t("Belgelerim")}</h2>
         {docs === null && !error && <p>{t("Yükleniyor…")}</p>}
         {docs?.length === 0 && <p className="hint">{t("Henüz belge yüklemediniz.")}</p>}

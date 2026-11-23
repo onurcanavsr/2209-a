@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import Araclar from "./Araclar";
 import SesDugmesi from "./SesDugmesi";
+import Tur from "./Tur";
 import { BelgeBaglamSaglayici, useBelgeBilgi } from "./BelgeBaglam";
 import { BOLUMLER, YONETIM, Ikon, belgeIdYoldan } from "@/lib/bolumler";
 import { SITE_ADI } from "@/lib/site";
@@ -40,7 +41,7 @@ export default function Kabuk({ admin, eposta, children }: { admin: boolean; epo
     <BelgeBaglamSaglayici>
       <div className="kabuk">
         <header ref={ustRef} className="ust">
-          <button ref={menuDugme} type="button" className="menu-ac" aria-expanded={acik} aria-controls="kenar"
+          <button ref={menuDugme} type="button" className="menu-ac" data-tur="menu-dugme" aria-expanded={acik} aria-controls="kenar"
             onClick={() => setAcik((a) => !a)}>
             <span aria-hidden="true">☰</span> {t("Menü")}
           </button>
@@ -48,17 +49,19 @@ export default function Kabuk({ admin, eposta, children }: { admin: boolean; epo
           <BelgeEtiketi />
           <div className="tools">
             {process.env.NEXT_PUBLIC_SESLI_KOMUT === "true" && <SesDugmesi admin={admin} />}
+            <button type="button" data-tur="tur-dugme" onClick={() => window.dispatchEvent(new Event("tur:baslat"))}>{t("Tanıtım turu")}</button>
             <Araclar />
             <KullaniciMenu eposta={eposta} />
           </div>
         </header>
 
-        <aside id="kenar" className="kenar" data-acik={acik} aria-label={t("Yan menü")}>
+        <aside id="kenar" className="kenar" data-tur="kenar" data-acik={acik} aria-label={t("Yan menü")}>
           <div className="kenar-ic"><Suspense fallback={null}><KenarMenu admin={admin} kapat={kapat} /></Suspense></div>
         </aside>
         {acik && <div className="kenar-arka" onClick={kapat} aria-hidden="true" />}
 
-        <main id="icerik">{children}</main>
+        <main id="icerik" data-tur="icerik">{children}</main>
+        <Tur eposta={eposta} />
       </div>
     </BelgeBaglamSaglayici>
   );

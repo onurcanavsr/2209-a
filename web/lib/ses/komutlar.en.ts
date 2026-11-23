@@ -15,6 +15,7 @@ export const KOMUTLAR_EN: Record<string, KomutCeviri> = {
   "tema.otomatik": { ad: "Automatic theme", ifadeler: ["automatic theme", "default theme", "theme automatic", "auto theme"] },
   "cikis": { ad: "Sign out", ifadeler: ["sign out", "log out", "logout", "sign me out"] },
   "yardim": { ad: "List the commands", ifadeler: ["help", "what can i say", "commands", "command list", "list commands"] },
+  "tur.baslat": { ad: "Start the guided tour", ifadeler: ["guided tour", "start tour", "start the tour", "show me around", "take a tour"] },
   "dil.tr": { ad: "Switch to Turkish", ifadeler: ["switch to turkish", "turkish", "speak turkish", "change language to turkish"] },
   "dil.en": { ad: "Switch to English", ifadeler: ["switch to english", "english", "speak english", "change language to english"] },
   // ---- belge sayfasında: bölümlere geçiş ----

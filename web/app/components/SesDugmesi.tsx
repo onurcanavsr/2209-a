@@ -81,6 +81,7 @@ export default function SesDugmesi({ admin }: { admin: boolean }) {
     "tema.acik": () => { ayarla({ tema: "light" }); },
     "tema.otomatik": () => { ayarla({ tema: "auto" }); },
     "yardim": () => { yardimAc(); },
+    "tur.baslat": () => { window.dispatchEvent(new Event("tur:baslat")); },
     "dil.tr": () => { window.dispatchEvent(new CustomEvent("araclar:dil", { detail: { lang: "tr" } })); sesDuyur("Türkçeye geçildi."); },
     "dil.en": () => { window.dispatchEvent(new CustomEvent("araclar:dil", { detail: { lang: "en" } })); sesDuyur("Switched to English."); },
   });
@@ -167,7 +168,7 @@ export default function SesDugmesi({ admin }: { admin: boolean }) {
   const bitti = kalan === 0;
   return (
     <>
-      <button type="button" onClick={dinle} disabled={durum === "isleniyor" || bitti}
+      <button type="button" data-tur="ses" onClick={dinle} disabled={durum === "isleniyor" || bitti}
         className={`ses-btn${durum === "dinliyor" ? " dinliyor" : ""}`}>
         <span aria-hidden="true">🎤 </span>
         {bitti ? t("Sesli komut (günlük hak doldu)") : durum === "dinliyor" ? t("Dinleniyor, iptal") : durum === "isleniyor" ? t("Anlaşılıyor…") : t("Sesli komut")}

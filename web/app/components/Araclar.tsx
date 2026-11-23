@@ -51,7 +51,7 @@ export default function Araclar() {
   return (
     <>
       <label htmlFor="dil" className="sr">{t("Dil")}</label>
-      <select id="dil" value={lang} lang={lang} onChange={(e) => setLang(e.target.value as Lang)}>
+      <select id="dil" data-tur="araclar" value={lang} lang={lang} onChange={(e) => setLang(e.target.value as Lang)}>
         {LANGS.map((l) => <option key={l} value={l} lang={l}>{LANG_LABEL[l]}</option>)}
       </select>
       <label htmlFor="tema" className="sr">{t("Tema")}</label>

@@ -21,6 +21,7 @@ export const KOMUTLAR: KomutTanimi[] = [
   { id: "tema.otomatik", ad: "Otomatik tema", ifadeler: ["otomatik tema", "varsayılan tema", "tema otomatik"] },
   { id: "cikis", ad: "Çıkış yap", ifadeler: ["çıkış yap", "oturumu kapat", "çıkış", "hesaptan çık"] },
   { id: "yardim", ad: "Komutları listele", ifadeler: ["yardım", "ne diyebilirim", "komutlar", "komut listesi", "komutları söyle"] },
+  { id: "tur.baslat", ad: "Tanıtım turunu başlat", ifadeler: ["tanıtım turu", "turu başlat", "tanıtımı başlat", "uygulamayı tanıt", "nasıl kullanılır"] },
   { id: "dil.tr", ad: "Türkçeye geç", ifadeler: ["türkçeye geç", "türkçe", "dili türkçe yap", "türkçe konuş"] },
   { id: "dil.en", ad: "İngilizceye geç", ifadeler: ["ingilizceye geç", "ingilizce", "dili ingilizce yap", "ingilizce konuş"] },
   // ---- belge sayfasında: bölümlere geçiş (sol menüdeki bölümler) ----
