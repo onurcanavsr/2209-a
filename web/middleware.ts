@@ -45,5 +45,6 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Görseller, simgeler ve metin dosyaları (logo, favicon...) giriş gerektirmez; yoksa çıkışsız ziyaretçide girişe yönlenip bozuk görünür
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|txt|xml)$).*)"],
 };

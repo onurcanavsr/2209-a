@@ -40,7 +40,7 @@ export default function KayitFormu() {
 
   return (
     <form className="card login" onSubmit={onSubmit}>
-      <img src="/logo-tam.png" alt={SITE_ADI} className="login-logo" width={200} height={187} />
+      <img src="/logo-amblem.png" alt={SITE_ADI} className="login-logo" width={120} height={99} />
       <h1>{t("Hesap oluştur")}</h1>
       <label htmlFor="email">{t("E-posta")}</label>
       <input id="email" name="email" type="email" autoComplete="email" required />

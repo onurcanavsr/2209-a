@@ -28,7 +28,7 @@ export default function GirisFormu({ bilgi, hata, kayitAcik }: { bilgi?: string;
 
   return (
     <form className="card login" onSubmit={onSubmit}>
-      <img src="/logo-tam.png" alt={SITE_ADI} className="login-logo" width={200} height={187} />
+      <img src="/logo-amblem.png" alt={SITE_ADI} className="login-logo" width={120} height={99} />
       <h1>{t("Hoş geldiniz")}</h1>
       <p>{t("Devam etmek için giriş yapın.")}</p>
       {bilgi === "silindi" && <p className="msg ok" role="status">{t("Hesabınız ve verileriniz silindi.")}</p>}
