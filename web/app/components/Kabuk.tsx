@@ -61,7 +61,7 @@ export default function Kabuk({ admin, eposta, children }: { admin: boolean; epo
         {acik && <div className="kenar-arka" onClick={kapat} aria-hidden="true" />}
 
         <main id="icerik" data-tur="icerik">{children}</main>
-        <Tur eposta={eposta} />
+        <Suspense fallback={null}><Tur eposta={eposta} /></Suspense>
       </div>
     </BelgeBaglamSaglayici>
   );
